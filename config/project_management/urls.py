@@ -12,7 +12,7 @@ urlpatterns = [
     # AJAX validation endpoints
     path('validate-boundary-step/', views.validate_boundary_step, name='validate_boundary_step'),
     path('validate-camera-step/', views.validate_camera_step, name='validate_camera_step'),
-    path('validate-sensor-step/', views.validate_sensor_step, name='validate_sensor_step'),  # NEW
+    path('validate-node-step/', views.validate_node_step, name='validate_node_step'),  # NEW
     
     # Project list and management
     path('', views.project_list, name='project_list'),

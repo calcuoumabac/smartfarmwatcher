@@ -748,31 +748,26 @@ def camera_heartbeat(request):
             'success': False,
             'message': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+# my new code for sensore validations   
 @csrf_exempt
 @require_http_methods(["POST"])
-def validate_sensor_step(request):
-    """AJAX endpoint to validate sensor node data"""
+def validate_node_step(request):
+    """AJAX endpoint to validate irrigation node data"""
     try:
         nodes_json = request.POST.get('nodes_data', '[]')
         nodes_data = json.loads(nodes_json)
 
         # Nodes are optional — zero is fine
-        seen_device_ids = []
         for i, node in enumerate(nodes_data):
-            if not node.get('device_id', '').strip():
-                return JsonResponse({'valid': False, 'message': f'Node {i+1}: Device ID is required.'})
-            if not node.get('name', '').strip():
-                return JsonResponse({'valid': False, 'message': f'Node {i+1}: Name is required.'})
-            if not node.get('node_type'):
-                return JsonResponse({'valid': False, 'message': f'Node {i+1}: Node type is required.'})
-            if not node.get('location'):
-                return JsonResponse({'valid': False, 'message': f'Node {i+1}: Please place a pin on the map.'})
-            device_id = node['device_id'].strip()
-            if device_id in seen_device_ids:
-                return JsonResponse({'valid': False, 'message': f'Node {i+1}: Duplicate device ID "{device_id}".'})
-            seen_device_ids.append(device_id)
+            if not node.get('device_id'):
+                return JsonResponse({'valid': False, 'message': f'Node {i+1}: device_id is required.'})
+            if not node.get('name'):
+                return JsonResponse({'valid': False, 'message': f'Node {i+1}: name is required.'})
+            location = node.get('location')
+            if not location or not location.get('lat') or not location.get('lng'):
+                return JsonResponse({'valid': False, 'message': f'Node {i+1}: place it on the map first.'})
 
         return JsonResponse({'valid': True})
+
     except Exception as e:
-        return JsonResponse({'valid': False, 'message': f'Validation error: {str(e)}'})
+        return JsonResponse({'valid': False, 'message': str(e)})
