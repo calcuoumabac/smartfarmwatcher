@@ -125,7 +125,6 @@
     color: white;
     margin-bottom: 20px;
 }
-
 .stat-icon.boundaries { background: linear-gradient(135deg, #4CAF50, #388E3C); }
 .stat-icon.cameras { background: linear-gradient(135deg, var(--warning-color), #e0a800); }
 .stat-icon.area { background: linear-gradient(135deg, var(--info-color), #138496); }
@@ -379,6 +378,96 @@
         height: 400px;
     }
 }
+/* Add to your existing CSS */
+.info-card.sensors::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #00BCD4, #0097A7);
+}
+.stat-icon.sensors {
+    background: linear-gradient(135deg, #00BCD4, #0097A7);
+}
+
+/* Sensor marker styling */
+.sensor-marker {
+    background: none !important;
+    border: none !important;
+}
+
+.sensor-marker-ok {
+    background: #00BCD4;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+}
+
+.sensor-marker-warning {
+    background: #ff9800;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    animation: sensorWarning 1s infinite;
+}
+
+.sensor-marker-critical {
+    background: #dc3545;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    animation: sensorCritical 0.8s infinite;
+}
+
+@keyframes sensorWarning {
+    0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+}
+
+@keyframes sensorCritical {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+/* Map legend update */
+.map-legend-sensor {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 15px;
+}
+
+.sensor-legend-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
 </style>
 {% endblock %}
 
@@ -447,6 +536,14 @@
                 <h3 class="stat-number">{{ project_stats.total_cameras }}</h3>
                 <p class="stat-label">AI Cameras</p>
             </div>
+            <!-- new carta taa sensors --> 
+            <div class="info-card sensors">
+                <div class="stat-icon sensors">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <h3 class="stat-number">{{ project_stats.total_sensors }}</h3>
+                <p class="stat-label">Sensor Nodes</p>
+            </div>
             <div class="info-card area">
                 <div class="stat-icon area">
                     <i class="fas fa-expand-arrows-alt"></i>
@@ -468,6 +565,7 @@
         <!-- Interactive Map -->
          
         <div class="map-section">
+                    <!-- Updated Map Header with Sensor Legend -->
             <div class="map-header">
                 <h4 style="color: var(--primary-color)"><i class="fas fa-map" style="color: var(--primary-color);"></i> Farm Map & Camera Locations</h4>
                 
@@ -475,9 +573,9 @@
                     <span class="badge bg-success me-2">Green Areas</span> Farm Boundaries
                     <span class="badge bg-primary me-2">Blue Markers</span> Cameras Inside Boundary
                     <span class="badge bg-warning me-2">Orange Markers</span> Cameras Outside Boundary
+                    <span class="badge bg-info me-2">Cyan Markers</span> Sensor Nodes
                 </p>
             </div>
-            <div id="project-map"></div>
         </div>
 
         
@@ -593,7 +691,54 @@
                 </div>
             </div>
             {% endif %}
+            <!-- ===== ADD SENSOR NODES LIST RIGHT HERE ===== -->
+            {% if sensor_nodes %}
+            <div class="mt-4">
+                <h5><i class="fas fa-microchip"></i> Sensor Nodes</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Device ID</th>
+                                <th>Type</th>
+                                <th>Farm Boundary</th>
+                                <th>Temperature</th>
+                                <th>Humidity</th>
+                                <th>Soil Moisture</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for node in sensor_nodes %}
+                            <tr>
+                                <td>{{ node.name }}</td>
+                                <td><code>{{ node.device_id }}</code></td>
+                                <td>
+                                    <span class="badge bg-info">{{ node.get_node_type_display }}</span>
+                                </td>
+                                <td>
+                                    {% if node.farm_boundary %}
+                                        Farm Boundary #{{ node.farm_boundary.id }}
+                                    {% else %}
+                                        <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                {% with node.get_latest_reading as reading %}
+                                <td>{% if reading and reading.temperature %}{{ reading.temperature }}°C{% else %}--{% endif %}</td>
+                                <td>{% if reading and reading.humidity %}{{ reading.humidity }}%{% else %}--{% endif %}</td>
+                                <td>{% if reading and reading.soil_moisture %}{{ reading.soil_moisture }}%{% else %}--{% endif %}</td>
+                                {% endwith %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+
         </div>
+    
 
 {% endblock %}
 
@@ -776,12 +921,205 @@ function addCameraMarkersWithFireRisk() {
                     });
                 }
             } catch (e) {
-                console.error('❌ Error loading camera:', e);
+                console.error(' Error loading camera:', e);
+            }
+        });
+    }
+}
+// Adding to existing extra_js block
+
+let sensorData = {{ sensor_nodes_data|safe }} || [];
+
+// Get sensor icon based on status
+function getSensorIcon(sensor) {
+    let status = sensor.status || 'ok';
+    let iconClass = 'sensor-marker-ok';
+    
+    if (status === 'warning') {
+        iconClass = 'sensor-marker-warning';
+    } else if (status === 'critical') {
+        iconClass = 'sensor-marker-critical';
+    }
+    
+    return L.divIcon({
+        className: 'sensor-marker',
+        html: `<div class="${iconClass}">
+                    <i class="fas fa-microchip"></i>
+               </div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+    });
+}
+
+// Create sensor popup with real-time data
+function createSensorPopup(sensor) {
+    const lastReading = sensor.last_reading || {};
+    const status = sensor.status || 'unknown';
+    const statusColor = status === 'ok' ? '#28a745' : (status === 'warning' ? '#ff9800' : '#dc3545');
+    
+    return `
+        <div class="sensor-popup" style="min-width: 260px;">
+            <h6 style="margin-bottom: 10px; color: #2c3e50;">
+                <i class="fas fa-microchip"></i> Sensor #${sensor.id}
+            </h6>
+            
+            <div style="margin-bottom: 10px;">
+                <span class="badge bg-info">${sensor.sensor_type || 'Unknown'}</span>
+                <span class="badge" style="background-color: ${statusColor};">${status.toUpperCase()}</span>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <div class="progress mb-2" style="height: 15px;">
+                    <div class="progress-bar ${sensor.battery_level < 20 ? 'bg-danger' : (sensor.battery_level < 50 ? 'bg-warning' : 'bg-success')}" 
+                         role="progressbar" 
+                         style="width: ${sensor.battery_level || 0}%;">
+                        ${sensor.battery_level || 0}%
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 10px; font-size: 13px;">
+                <div><strong>🌡️ Temperature:</strong> ${lastReading.temperature || '--'}°C</div>
+                <div><strong>💧 Humidity:</strong> ${lastReading.humidity || '--'}%</div>
+                <div><strong>🌱 Soil Moisture:</strong> ${lastReading.soil_moisture || '--'}%</div>
+                ${lastReading.rainfall ? `<div><strong>☔ Rainfall:</strong> ${lastReading.rainfall} mm</div>` : ''}
+                ${lastReading.wind_speed ? `<div><strong>💨 Wind Speed:</strong> ${lastReading.wind_speed} m/s</div>` : ''}
+            </div>
+            
+            <div style="margin-top: 10px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px;">
+                <div>Last Update: ${lastReading.timestamp ? new Date(lastReading.timestamp).toLocaleString() : 'N/A'}</div>
+                <div>Farm Boundary #${sensor.farm_boundary_id || 'N/A'}</div>
+            </div>
+        </div>
+    `;
+}
+
+// Add sensor markers to map
+function addSensorMarkers() {
+    if (sensorData && Array.isArray(sensorData) && sensorData.length > 0) {
+        sensorData.forEach(function(sensor, index) {
+            try {
+                if (sensor && !isNaN(sensor.latitude) && !isNaN(sensor.longitude)) {
+                    const sensorIcon = getSensorIcon(sensor);
+                    
+                    const marker = L.marker([sensor.latitude, sensor.longitude], {
+                        icon: sensorIcon
+                    }).addTo(projectMap);
+                    
+                    const popupContent = createSensorPopup(sensor);
+                    marker.bindPopup(popupContent, {
+                        maxWidth: 300,
+                        className: 'sensor-popup-container'
+                    });
+                }
+            } catch (e) {
+                console.error('❌ Error loading sensor:', e);
             }
         });
     }
 }
 
+// Update sensor data in real-time via WebSocket or polling
+function updateSensorData() {
+    // Option 1: Polling every 30 seconds
+    setInterval(function() {
+        fetch(`/api/projects/${projectId}/sensors/latest/`, {
+            headers: {
+                'X-CSRFToken': csrfToken,
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            updateSensorTable(data);
+            updateSensorMarkers(data);
+        })
+        .catch(error => console.error('Error updating sensor data:', error));
+    }, 30000);
+    
+    // Option 2: WebSocket connection for real-time updates
+    // const socket = new WebSocket(`ws://your-domain/ws/sensors/${projectId}/`);
+    // socket.onmessage = function(e) {
+    //     const data = JSON.parse(e.data);
+    //     updateSensorTable(data);
+    //     updateSensorMarkers(data);
+    // };
+}
+
+function updateSensorTable(sensorReadings) {
+    sensorReadings.forEach(reading => {
+        const row = document.getElementById(`sensor-row-${reading.sensor_id}`);
+        if (row) {
+            // Update last reading time
+            const lastReadingCell = document.getElementById(`last-reading-${reading.sensor_id}`);
+            if (lastReadingCell) {
+                lastReadingCell.innerHTML = `<small>${new Date(reading.timestamp).toLocaleString()}</small>`;
+            }
+            
+            // Update status
+            const statusCell = document.getElementById(`status-${reading.sensor_id}`);
+            if (statusCell) {
+                let statusBadge = '';
+                if (reading.status === 'ok') {
+                    statusBadge = '<span class="badge bg-success">Online</span>';
+                } else if (reading.status === 'warning') {
+                    statusBadge = '<span class="badge bg-warning">Warning</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-danger">Critical</span>';
+                }
+                statusCell.innerHTML = statusBadge;
+            }
+            
+            // Update sensor readings
+            document.getElementById(`temp-${reading.sensor_id}`).innerHTML = reading.temperature ? `${reading.temperature}°C` : '--';
+            document.getElementById(`humidity-${reading.sensor_id}`).innerHTML = reading.humidity ? `${reading.humidity}%` : '--';
+            document.getElementById(`moisture-${reading.sensor_id}`).innerHTML = reading.soil_moisture ? `${reading.soil_moisture}%` : '--';
+        }
+    });
+}
+
+function updateSensorMarkers(sensorReadings) {
+    // Update existing markers on map with new data
+    // This would require storing marker references
+    if (window.sensorMarkers) {
+        sensorReadings.forEach(reading => {
+            const marker = window.sensorMarkers[reading.sensor_id];
+            if (marker) {
+                // Update popup content
+                const updatedSensor = sensorData.find(s => s.id === reading.sensor_id);
+                if (updatedSensor) {
+                    updatedSensor.last_reading = reading;
+                    updatedSensor.status = reading.status;
+                    marker.setPopupContent(createSensorPopup(updatedSensor));
+                    
+                    // Update icon based on new status
+                    const newIcon = getSensorIcon(updatedSensor);
+                    marker.setIcon(newIcon);
+                }
+            }
+        });
+    }
+}
+
+// Call this after adding sensor markers
+function initializeSensors() {
+    addSensorMarkers();
+    updateSensorData();
+}
+
+// Modify your initializeProjectMap function to include sensors
+function initializeProjectMap() {
+    // ... existing code ...
+    
+    // Add camera markers
+    addCameraMarkersWithFireRisk();
+    
+    // Add sensor markers
+    if (typeof sensorData !== 'undefined') {
+        initializeSensors();
+    }
+    
+    // ... rest of existing code ...
+}
 // Wait for everything to load
 window.addEventListener('load', function() {
     setTimeout(function() {
@@ -929,6 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, index * 100);
     });
 });
+
 </script>
 
 {% csrf_token %}

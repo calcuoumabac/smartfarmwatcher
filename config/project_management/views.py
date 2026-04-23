@@ -523,49 +523,77 @@ def project_list(request):
     
     return render(request, 'project_management/project_list.html', context)
 
+#adding my serializer 
+def serialize_sensor_nodes(sensor_nodes):
+    """Serialize sensor nodes for JavaScript"""
+    data = []
+    for sensor in sensor_nodes:
+        node_data = {
+            'id': sensor.id,
+            'latitude': sensor.latitude,
+            'longitude': sensor.longitude,
+            'sensor_type': sensor.get_sensor_type_display(),
+            'battery_level': sensor.battery_level,
+            'status': sensor.status,
+            'farm_boundary_id': sensor.farm_boundary.id if sensor.farm_boundary else None,
+            'last_reading': None
+        }
+        
+        # Get latest reading if available
+        if hasattr(sensor, 'latest_reading'):
+            node_data['last_reading'] = {
+                'temperature': sensor.latest_reading.temperature,
+                'humidity': sensor.latest_reading.humidity,
+                'soil_moisture': sensor.latest_reading.soil_moisture,
+                'rainfall': getattr(sensor.latest_reading, 'rainfall', None),
+                'wind_speed': getattr(sensor.latest_reading, 'wind_speed', None),
+                'timestamp': sensor.latest_reading.timestamp.isoformat() if sensor.latest_reading.timestamp else None
+            }
+            
+        data.append(node_data)
+    
+    return json.dumps(data)
 
 @login_required
 def project_detail(request, slug):
     """Display detailed view of a specific project with map"""
     
-    # Get the project, ensuring it belongs to the current user
     project = get_object_or_404(Project, slug=slug, created_by=request.user)
-    
-    # Get all farm boundaries with their geometries
     farm_boundaries = project.farm_boundaries.filter(is_active=True)
-    
-    # Get all cameras with their locations
     cameras = project.cameras.filter(is_active=True).select_related('farm_boundary')
     
+    # Get irrigation nodes
+    from sensors.models import IrrigationNode
+    sensor_nodes = IrrigationNode.objects.filter(
+        project=project, is_active=True
+    ).prefetch_related('readings')
+
     # Prepare boundary data for the map
     boundaries_data = []
     for boundary in farm_boundaries:
         if boundary.boundary:
             try:
-                # Convert geometry to GeoJSON for JavaScript
-                boundary_data = {
+                boundaries_data.append({
                     'id': boundary.id,
                     'description': boundary.description,
                     'area_hectares': float(boundary.area_hectares) if boundary.area_hectares else 0,
                     'geometry': json.loads(boundary.boundary.geojson),
                     'created_at': boundary.created_at.isoformat()
-                }
-                boundaries_data.append(boundary_data)
-            except Exception as e:
+                })
+            except Exception:
                 continue
 
     fire_predictor = FireRiskPredictor()
-    
+
     # Prepare camera data for the map
     cameras_data = []
     for camera in cameras:
         if camera.location:
             fire_risk = fire_predictor.calculate_fire_risk(
-                    camera.location.y,  # latitude
-                    camera.location.x   # longitude
+                camera.location.y, camera.location.x
             )
             try:
-                camera_data = {
+                cameras_data.append({
                     'id': camera.id,
                     'farm_boundary_id': camera.farm_boundary.id,
                     'camera_type': camera.camera_type,
@@ -576,15 +604,38 @@ def project_detail(request, slug):
                     'is_within_boundary': camera.is_within_farm_boundary(),
                     'created_at': camera.created_at.isoformat(),
                     'fire_risk': fire_risk
-                }
-                cameras_data.append(camera_data)
-            except Exception as e:
+                })
+            except Exception:
                 continue
-    
-    # Calculate map center based on boundaries or cameras
-    map_center = [36.8065, 10.1815]  # Default to Tunis
+
+    # Prepare sensor nodes data for the map
+    sensor_nodes_data = []
+    for node in sensor_nodes:
+        if node.location:
+            latest = node.get_latest_reading()
+            try:
+                sensor_nodes_data.append({
+                    'id': node.id,
+                    'name': node.name,
+                    'device_id': node.device_id,
+                    'node_type': node.node_type,
+                    'node_type_display': node.get_node_type_display(),
+                    'farm_boundary_id': node.farm_boundary.id if node.farm_boundary else None,
+                    'latitude': node.location.y,
+                    'longitude': node.location.x,
+                    'last_reading': {
+                        'temperature': latest.temperature if latest else None,
+                        'humidity': latest.humidity if latest else None,
+                        'soil_moisture': latest.soil_moisture if latest else None,
+                        'timestamp': latest.timestamp.isoformat() if latest else None,
+                    } if latest else None
+                })
+            except Exception:
+                continue
+
+    # Calculate map center
+    map_center = [36.8065, 10.1815]
     if boundaries_data:
-        # Use centroid of all boundaries
         try:
             combined_boundary = project.get_all_farm_boundaries_combined()
             if combined_boundary:
@@ -593,28 +644,30 @@ def project_detail(request, slug):
         except Exception:
             pass
     elif cameras_data:
-        # Use average of camera locations
         try:
             avg_lat = sum(cam['latitude'] for cam in cameras_data) / len(cameras_data)
             avg_lng = sum(cam['longitude'] for cam in cameras_data) / len(cameras_data)
             map_center = [avg_lat, avg_lng]
         except Exception:
             pass
-    
+
     context = {
         'project': project,
         'farm_boundaries': farm_boundaries,
         'cameras': cameras,
+        'sensor_nodes': sensor_nodes,
         'boundaries_data': json.dumps(boundaries_data),
         'cameras_data': json.dumps(cameras_data),
+        'sensor_nodes_data': json.dumps(sensor_nodes_data),
         'map_center': json.dumps(map_center),
         'project_stats': {
             'total_boundaries': project.get_total_farm_boundaries(),
             'total_cameras': project.get_total_cameras(),
+            'total_sensors': sensor_nodes.count(),
             'total_area': project.get_total_farm_area_hectares(),
         }
     }
-    
+
     return render(request, 'project_management/project_detail.html', context)
 
 
@@ -771,3 +824,4 @@ def validate_node_step(request):
 
     except Exception as e:
         return JsonResponse({'valid': False, 'message': str(e)})
+
