@@ -252,6 +252,7 @@
         font-size: 12px;
         font-weight: 500;
         text-transform: uppercase;
+        margin-top: 30px; /* new
     }
 
     .status-active {
@@ -668,7 +669,7 @@
                 
                 <p class="text-muted mb-3">{{ latest_project.description|default:"No description available." }}</p>
                 
-                <!-- Project Statistics -->
+                <!-- Project Statistics 
                 <div class="project-stats">
                     <div class="stat-item">
                         <div class="number">{{ latest_project.total_boundaries|default:0 }}</div>
@@ -677,6 +678,30 @@
                     <div class="stat-item">
                         <div class="number">{{ latest_project.total_cameras|default:0 }}</div>
                         <div class="label">Cameras</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number">{{ latest_project.total_detections|default:0 }}</div>
+                        <div class="label">Detections</div>
+                    </div>
+                </div> -->
+                
+                <!-- added by me -->
+                <div class="project-stats" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div class="stat-item">
+                        <div class="number">{{ latest_project.total_boundaries|default:0 }}</div>
+                        <div class="label">Boundaries</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number">{{ latest_project.total_cameras|default:0 }}</div>
+                        <div class="label">Cameras</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number">{{ latest_project.total_environment_nodes|default:0 }}</div>
+                        <div class="label">Env. Nodes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number">{{ latest_project.total_water_nodes|default:0 }}</div>
+                        <div class="label">Water Nodes</div>
                     </div>
                     <div class="stat-item">
                         <div class="number">{{ latest_project.total_detections|default:0 }}</div>

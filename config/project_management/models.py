@@ -90,6 +90,17 @@ class Project(models.Model):
         """Get total number of active farm boundaries"""
         return self.farm_boundaries.filter(is_active=True).count()
     
+    # added by me (new)
+    def get_total_environment_nodes(self):
+        return self.irrigation_nodes.filter(is_active=True, node_type='bme280_soil').count()
+
+    def get_total_water_nodes(self):
+        return self.irrigation_nodes.filter(is_active=True, node_type='salinity').count()
+    
+    def get_total_irrigation_nodes(self):
+        return self.irrigation_nodes.filter(is_active=True).count()
+    # tell here
+    
     def get_cameras_by_farm_boundary(self, farm_boundary):
         """Get cameras within a specific farm boundary"""
         if not farm_boundary.boundary:
