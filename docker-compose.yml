@@ -60,9 +60,9 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-django_db}
-      - DB_USER=${DB_USER:-django_user}
-      - DB_PASSWORD=${DB_PASSWORD:-django_password}
+      - DB_NAME=${DB_NAME:-sfw_db}
+      - DB_USER=${DB_USER:-arfa}
+      - DB_PASSWORD=${DB_PASSWORD:-arfa}
       - REDIS_URL=redis://redis:6379/0
       - REDIS_LOCATION=redis://redis:6379/1
     depends_on:

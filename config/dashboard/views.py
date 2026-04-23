@@ -32,6 +32,8 @@ def dashboard_view(request):
     if latest_project:
         latest_project.total_boundaries = latest_project.get_total_farm_boundaries()
         latest_project.total_cameras = latest_project.get_total_cameras()
+        latest_project.total_environment_nodes = latest_project.get_total_environment_nodes() # new
+        latest_project.total_water_nodes = latest_project.get_total_water_nodes() # new
         latest_project.total_detections = Detection.objects.filter(
             camera__project=latest_project
         ).count()

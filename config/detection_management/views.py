@@ -24,6 +24,9 @@ from django.utils import timezone
 from project_management.models import Project, Camera, UserProjectRole
 from .models import Detection, DetectionType
 
+# added by me
+from sensors.models import IrrigationNode, NodeAlert
+
 
 # Load AI models (initialize once)
 print("=== LOADING AI MODELS ===")
@@ -745,7 +748,7 @@ def detection_statistics(request):
     
     # Calculate statistics
     now = timezone.now()
-    stats = {
+    '''stats = {
         'total_detections': all_detections.count(),
         'fire_detections': all_detections.filter(detection_type__name='fire').count(),
         'smoke_detections': all_detections.filter(detection_type__name='smoke').count(),
@@ -785,6 +788,51 @@ def detection_statistics(request):
         'stats': stats,
         'project_stats': project_stats,
         'recent_detections': recent_detections,
+    }'''
+
+    # added by me
+    stats = {
+        'total_detections': all_detections.count(),
+        'fire_detections': all_detections.filter(detection_type__name='fire').count(),
+        'smoke_detections': all_detections.filter(detection_type__name='smoke').count(),
+        'person_detections': all_detections.filter(detection_type__name='person').count(),
+        'total_cameras': user_cameras.count(),
+        'environment_alerts': NodeAlert.objects.filter(
+            node__project__in=user_projects,
+            is_resolved=False
+        ).exclude(alert_type__in=['high_ec', 'high_salinity']).count(),
+        'water_alerts': NodeAlert.objects.filter(
+            node__project__in=user_projects,
+            is_resolved=False,
+            alert_type__in=['high_ec', 'high_salinity']
+        ).count(),
+    }
+
+    # Get node alerts
+    if selected_project:
+        node_alerts = NodeAlert.objects.filter(
+            node__project=selected_project
+        ).select_related('node', 'node__project').order_by('-created_at')[:20]
+    else:
+        node_alerts = NodeAlert.objects.filter(
+            node__project__in=user_projects
+        ).select_related('node', 'node__project').order_by('-created_at')[:20]
+
+    # Projects with active alerts (for red dot indicator)
+    projects_with_alerts = set(
+        NodeAlert.objects.filter(
+            node__project__in=user_projects,
+            is_resolved=False
+        ).values_list('node__project_id', flat=True)
+    )
+
+    context = {
+        'latest_detections': latest_detections,
+        'user_projects': user_projects,
+        'selected_project': selected_project,
+        'stats': stats,
+        'node_alerts': node_alerts,
+        'projects_with_alerts': projects_with_alerts,
     }
     
     return render(request, 'detection_management/detection_statistics.html', context)

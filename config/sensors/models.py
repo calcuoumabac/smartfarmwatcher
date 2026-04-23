@@ -49,3 +49,31 @@ class SensorReading(models.Model):
 
     def __str__(self):
         return f"{self.device_id} - {self.timestamp}"
+    
+# added by me 
+class NodeAlert(models.Model):
+    ALERT_TYPES = [
+        ('high_temperature', 'High Temperature Alert'),
+        ('high_humidity', 'High Humidity Alert'),
+        ('high_ec', 'High EC Alert'),
+        ('high_salinity', 'High Salinity Alert'),
+        ('low_soil_moisture', 'Low Soil Moisture Alert'),
+    ]
+
+    node        = models.ForeignKey(IrrigationNode, on_delete=models.CASCADE, related_name='alerts')
+    alert_type  = models.CharField(max_length=50, choices=ALERT_TYPES)
+    value       = models.FloatField()
+    unit        = models.CharField(max_length=20)
+    is_resolved = models.BooleanField(default=False)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_alert_type_display()} - {self.node.name} ({self.value}{self.unit})"
+
+    def get_alert_category(self):
+        """Returns 'environment' or 'water' based on alert type"""
+        water_alerts = ['high_ec', 'high_salinity']
+        return 'water' if self.alert_type in water_alerts else 'environment'

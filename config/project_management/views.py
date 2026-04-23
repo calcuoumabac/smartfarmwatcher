@@ -216,8 +216,8 @@ def _handle_project_creation(request):
             except json.JSONDecodeError:
                 nodes_data = []
 
-            from sensors.models import IrrigationNode
-            from django.contrib.gis.geos import Point
+            #from sensors.models import IrrigationNode
+            #from django.contrib.gis.geos import Point
 
             nodes_created = 0
             for node_data in nodes_data:
@@ -507,6 +507,7 @@ def project_list(request):
             'total_boundaries': project.get_total_farm_boundaries(),
             'total_cameras': project.get_total_cameras(),
             'total_area': project.get_total_farm_area_hectares(),
+            'total_irrigation_nodes': project.get_total_irrigation_nodes(), # new
         }
         projects_with_stats.append(project_data)
     

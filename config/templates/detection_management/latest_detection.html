@@ -534,7 +534,23 @@
             <h3 class="stat-number">{{ stats.smoke_detections }}</h3>
             <p class="stat-label">Smoke Detections</p>
         </div>
-    </div>
+
+        <!--added by me-->
+        <div class="stat-card" style="border-top: 4px solid #00BCD4;">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #00BCD4, #0097A7);">
+                <i class="fas fa-thermometer-half"></i>
+            </div>
+            <h3 class="stat-number">{{ stats.environment_alerts }}</h3>
+            <p class="stat-label">Environment Alerts</p>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid #2196F3;">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #2196F3, #1565C0);">
+                <i class="fas fa-tint"></i>
+            </div>
+            <h3 class="stat-number">{{ stats.water_alerts }}</h3>
+            <p class="stat-label">Water Alerts</p>
+        </div>
+            </div>
 
     <!-- Latest Detections Header with Enhanced Filter -->
     <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap">
@@ -661,6 +677,97 @@
                 No AI detections have been recorded from your cameras yet.
             {% endif %}
         </p>
+    </div>
+    {% endif %}
+
+    <!--added by me-->
+    <!-- Node Alerts Section -->
+    <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap mt-5">
+        <div class="detections-header-left">
+            <h4 style="color: var(--primary-color)" class="mb-2">
+                <i class="fas fa-broadcast-tower" style="color: var(--primary-color);"></i>
+                Latest Alerts from Nodes
+            </h4>
+            <p class="text-muted mb-0">Most recent alerts from environmental and water sensor nodes</p>
+        </div>
+
+        <!-- Project filter with red dot indicator -->
+        <div class="filter-section-inline">
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <i class="fas fa-filter filter-icon"></i>
+                <select name="project" class="project-filter-inline" onchange="this.form.submit()">
+                    <option value="">All Projects</option>
+                    {% for project in user_projects %}
+                    <option value="{{ project.id }}"
+                        {% if selected_project and selected_project.id == project.id %}selected{% endif %}>
+                        {{ project.name }}
+                        {% if project.id in projects_with_alerts %}🔴{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if selected_project %}
+                <a href="?" class="clear-filter-btn-inline" title="Clear Filter">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if node_alerts %}
+    <div style="background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden;">
+        <table class="table table-hover mb-0">
+            <thead style="background: #f8f9fa;">
+                <tr>
+                    <th>Alert Type</th>
+                    <th>Node / Project</th>
+                    <th>Value</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in node_alerts %}
+                <tr>
+                    <td>
+                        {% if alert.get_alert_category == 'environment' %}
+                            <span style="background: #00BCD4; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
+                                <i class="fas fa-thermometer-half"></i> {{ alert.get_alert_type_display }}
+                            </span>
+                        {% else %}
+                            <span style="background: #2196F3; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
+                                <i class="fas fa-tint"></i> {{ alert.get_alert_type_display }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ alert.node.name }}</strong>
+                        <br><small class="text-muted">
+                            {% if alert.get_alert_category == 'environment' %}Environment Node{% else %}Water Node{% endif %}
+                            • {{ alert.node.project.name }}
+                        </small>
+                    </td>
+                    <td>
+                        <strong>{{ alert.value }} {{ alert.unit }}</strong>
+                    </td>
+                    <td>
+                        <span style="background: #f44336; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
+                            Alert
+                        </span>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ alert.created_at|date:"M d, Y H:i" }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-broadcast-tower"></i>
+        <h3>No Node Alerts</h3>
+        <p>No alerts have been generated from your sensor nodes yet.</p>
     </div>
     {% endif %}
 
