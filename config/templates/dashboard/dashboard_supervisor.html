@@ -632,7 +632,27 @@
             <p class="stat-label">Today's Detections</p>
         </div>
     </div>
+    <!--added by me-->
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card" style="border-top: 4px solid #00BCD4;">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #00BCD4, #0097A7);">
+                <i class="fas fa-thermometer-half"></i>
+            </div>
+            <h3 class="stat-number">{{ environment_node_count|default:0 }}</h3>
+            <p class="stat-label">Env. Nodes</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card" style="border-top: 4px solid #2196F3;">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #2196F3, #1565C0);">
+                <i class="fas fa-tint"></i>
+            </div>
+            <h3 class="stat-number">{{ water_node_count|default:0 }}</h3>
+            <p class="stat-label">Water Nodes</p>
+        </div>
+    </div>
 </div>
+
 
 <!-- Main Content: Latest Project and Detection -->
 <div class="row">

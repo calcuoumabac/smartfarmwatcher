@@ -57,6 +57,20 @@ def dashboard_view(request):
         project__in=user_projects,
         is_active=True
     ).count()
+
+    # added by me 
+    from sensors.models import IrrigationNode
+    environment_node_count = IrrigationNode.objects.filter(
+        project__in=user_projects,
+        is_active=True,
+        node_type='bme280_soil'
+    ).count()
+    
+    water_node_count = IrrigationNode.objects.filter(
+        project__in=user_projects,
+        is_active=True,
+        node_type='salinity'
+    ).count()
     
     # Get detection count for today
     today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -79,6 +93,8 @@ def dashboard_view(request):
         'camera_count': camera_count,
         'detection_count': detection_count,
         'alert_count': alert_count,
+        'environment_node_count': environment_node_count,  # ← new
+        'water_node_count': water_node_count, # ← new
     }
     
     # Route clients to mobile app invitation page
