@@ -495,6 +495,8 @@ def detection_dashboard(request):
         'fire_detections': all_detections.filter(detection_type__name='fire').count(),
         'smoke_detections': all_detections.filter(detection_type__name='smoke').count(),
         'person_detections': all_detections.filter(detection_type__name='person').count(),
+        'environmental_detections': all_detections.filter(detection_type__name__in=['high_temperature', 'high_humidity', 'low_soil_moisture']).count(),
+        'water_leak_detections': all_detections.filter(detection_type__name='water_leak').count(),
         'total_cameras': user_cameras.count()
     }
     

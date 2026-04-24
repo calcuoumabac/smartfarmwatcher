@@ -27,7 +27,6 @@ from utils.fire_risk import FireRiskPredictor
 from .models import Project, FarmBoundary, Camera
 from .forms import ProjectForm
 
-
 @login_required
 def create_project_wizard(request):
     """
@@ -72,11 +71,14 @@ def _handle_project_creation(request):
     # Parse farm boundaries data
     boundaries_json = request.POST.get('farm_boundaries_data', '[]')
     cameras_json = request.POST.get('cameras_data', '[]')
+    nodes_json = request.POST.get('nodes_data', '[]')  # ← Get nodes data here
+    
     
     
     try:
         farm_boundaries_data = json.loads(boundaries_json)
         cameras_data = json.loads(cameras_json)
+        nodes_data = json.loads(nodes_json)  # ← Parse nodes data here
     except json.JSONDecodeError:
         raise ValueError("Invalid farm boundaries or cameras data")
     
@@ -208,49 +210,47 @@ def _handle_project_creation(request):
                 cameras_created += 1
             except Exception as e:
                 continue
-            
-            #creation de node loop : 
-            nodes_json = request.POST.get('nodes_data', '[]')
+        #creation de node loop : 
+        nodes_json = request.POST.get('nodes_data', '[]')
+        try:
+            nodes_data = json.loads(nodes_json)
+        except json.JSONDecodeError:
+            nodes_data = []
+
+        from sensors.models import IrrigationNode
+        from django.contrib.gis.geos import Point
+
+        nodes_created = 0
+        for node_data in nodes_data:
+            farm_boundary = None
+            temp_boundary_id = node_data.get('farm_boundary_temp_id')
+            if temp_boundary_id:
+                farm_boundary = boundary_mapping.get(str(temp_boundary_id))
+            if not farm_boundary and created_boundaries:
+                farm_boundary = created_boundaries[0]
+            if not farm_boundary:
+                continue
+
+            node = IrrigationNode(
+                project=project,
+                farm_boundary=farm_boundary,
+                device_id=node_data.get('device_id', ''),
+                name=node_data.get('name', ''),
+                node_type=node_data.get('node_type', 'bme280_soil'),
+                description=node_data.get('description', ''),
+            )
+            location_data = node_data.get('location')
+            if location_data:
+                lat = location_data.get('lat')
+                lng = location_data.get('lng')
+                if lat and lng:
+                    node.location = Point(float(lng), float(lat), srid=4326)
             try:
-                nodes_data = json.loads(nodes_json)
-            except json.JSONDecodeError:
-                nodes_data = []
-
-            #from sensors.models import IrrigationNode
-            #from django.contrib.gis.geos import Point
-
-            nodes_created = 0
-            for node_data in nodes_data:
-                farm_boundary = None
-                temp_boundary_id = node_data.get('farm_boundary_temp_id')
-                if temp_boundary_id:
-                    farm_boundary = boundary_mapping.get(str(temp_boundary_id))
-                if not farm_boundary and created_boundaries:
-                    farm_boundary = created_boundaries[0]
-                if not farm_boundary:
-                    continue
-
-                node = IrrigationNode(
-                    project=project,
-                    farm_boundary=farm_boundary,
-                    device_id=node_data.get('device_id', ''),
-                    name=node_data.get('name', ''),
-                    node_type=node_data.get('node_type', 'bme280_soil'),
-                    description=node_data.get('description', ''),
-                )
-                location_data = node_data.get('location')
-                if location_data:
-                    lat = location_data.get('lat')
-                    lng = location_data.get('lng')
-                    if lat and lng:
-                        node.location = Point(float(lng), float(lat), srid=4326)
-                try:
-                    node.full_clean()
-                    node.save()
-                    nodes_created += 1
-                except Exception as e:
-                    continue
-     # message updated to sensors        
+                node.full_clean()
+                node.save()
+                nodes_created += 1
+            except Exception as e:
+                continue          
     messages.success(request, f'Project "{project.name}" created successfully with {len(created_boundaries)} boundaries, {cameras_created} cameras and {nodes_created} sensor nodes!')
     return redirect('project_management:project_detail', slug=project.slug)
 
@@ -525,10 +525,10 @@ def project_list(request):
     return render(request, 'project_management/project_list.html', context)
 
 #adding my serializer 
-def serialize_sensor_nodes(sensor_nodes):
+def serialize_sensor_nodes(irrigation_nodes):
     """Serialize sensor nodes for JavaScript"""
     data = []
-    for sensor in sensor_nodes:
+    for sensor in irrigatin_nodes:
         node_data = {
             'id': sensor.id,
             'latitude': sensor.latitude,
@@ -562,12 +562,7 @@ def project_detail(request, slug):
     project = get_object_or_404(Project, slug=slug, created_by=request.user)
     farm_boundaries = project.farm_boundaries.filter(is_active=True)
     cameras = project.cameras.filter(is_active=True).select_related('farm_boundary')
-    
-    # Get irrigation nodes
-    from sensors.models import IrrigationNode
-    sensor_nodes = IrrigationNode.objects.filter(
-        project=project, is_active=True
-    ).prefetch_related('readings')
+    irrigation_nodes= project.irrigation_nodes.filter(is_active=True).select_related('farm_boundary')  # new
 
     # Prepare boundary data for the map
     boundaries_data = []
@@ -609,13 +604,13 @@ def project_detail(request, slug):
             except Exception:
                 continue
 
-    # Prepare sensor nodes data for the map
-    sensor_nodes_data = []
-    for node in sensor_nodes:
+    # Prepare irrigation nodes data for the map
+    irrigation_nodes_data = []
+    for node in irrigation_nodes:
         if node.location:
             latest = node.get_latest_reading()
             try:
-                sensor_nodes_data.append({
+                irrigation_nodes_data.append({
                     'id': node.id,
                     'name': node.name,
                     'device_id': node.device_id,
@@ -656,15 +651,15 @@ def project_detail(request, slug):
         'project': project,
         'farm_boundaries': farm_boundaries,
         'cameras': cameras,
-        'sensor_nodes': sensor_nodes,
+        'irrigation_nodes': irrigation_nodes,
         'boundaries_data': json.dumps(boundaries_data),
         'cameras_data': json.dumps(cameras_data),
-        'sensor_nodes_data': json.dumps(sensor_nodes_data),
+        'irrigation_nodes_data': json.dumps(irrigation_nodes_data),
         'map_center': json.dumps(map_center),
         'project_stats': {
             'total_boundaries': project.get_total_farm_boundaries(),
             'total_cameras': project.get_total_cameras(),
-            'total_sensors': sensor_nodes.count(),
+            'total_irrigation_nodes': project.get_total_irrigation_nodes(),
             'total_area': project.get_total_farm_area_hectares(),
         }
     }
@@ -701,7 +696,6 @@ def project_status_toggle(request, slug):
         })
     
     return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
 
 @login_required
 def project_regenerate_code(request, slug):
@@ -809,10 +803,10 @@ def validate_node_step(request):
     """AJAX endpoint to validate irrigation node data"""
     try:
         nodes_json = request.POST.get('nodes_data', '[]')
-        nodes_data = json.loads(nodes_json)
+        irrigationNodesData = json.loads(nodes_json)
 
         # Nodes are optional — zero is fine
-        for i, node in enumerate(nodes_data):
+        for i, node in enumerate(irrigationNodesData):
             if not node.get('device_id'):
                 return JsonResponse({'valid': False, 'message': f'Node {i+1}: device_id is required.'})
             if not node.get('name'):
