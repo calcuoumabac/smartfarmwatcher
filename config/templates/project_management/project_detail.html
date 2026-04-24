@@ -541,7 +541,7 @@
                 <div class="stat-icon sensors">
                     <i class="fas fa-microchip"></i>
                 </div>
-                <h3 class="stat-number">{{ project_stats.total_sensors }}</h3>
+                <h3 class="stat-number">{{ project_stats.total_irrigation_nodes }}</h3>
                 <p class="stat-label">Sensor Nodes</p>
             </div>
             <div class="info-card area">
@@ -627,6 +627,7 @@
                                 <th>Description</th>
                                 <th>Area (ha)</th>
                                 <th>Cameras</th>
+                                <th>Sensor Nodes</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -636,6 +637,7 @@
                                 <td>{{ boundary.description|default:"No description" }}</td>
                                 <td>{{ boundary.area_hectares|floatformat:2 }}</td>
                                 <td>{{ boundary.get_cameras_count }}</td>
+                                <td>{{ boundary.get_irrigation_nodes_count }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -692,10 +694,10 @@
                 </div>
             </div>
             {% endif %}
-            <!-- ===== ADD SENSOR NODES LIST RIGHT HERE ===== -->
-            {% if sensor_nodes %}
+            <!-- ===== ADD IRRIGATION NODES LIST RIGHT HERE ===== -->
+            {% if irrigation_nodes %}
             <div class="mt-4">
-                <h5><i class="fas fa-microchip"></i> Sensor Nodes</h5>
+                <h5><i class="fas fa-microchip"></i> Irrigation Nodes</h5>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
@@ -710,7 +712,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for node in sensor_nodes %}
+                            {% for node in irrigation_nodes %}
                             <tr>
                                 <td>{{ node.name }}</td>
                                 <td><code>{{ node.device_id }}</code></td>
@@ -750,16 +752,18 @@
 let projectMap;
 
 // Get data from Django with safe parsing
-let boundariesData, camerasData, mapCenter;
+let boundariesData, camerasData, irrigationNodesData, mapCenter;
 
 try {
     boundariesData = {{ boundaries_data|safe }} || [];
     camerasData = {{ cameras_data|safe }} || [];
+    irrigationNodesData = {{ irrigation_nodes_data|safe }} || [];
     mapCenter = {{ map_center|safe }} || [36.8065, 10.1815];
 } catch (e) {
     console.error('Error parsing Django data:', e);
     boundariesData = [];
     camerasData = [];
+    irrigationNodesData = [];
     mapCenter = [36.8065, 10.1815];
 }
 
@@ -929,7 +933,7 @@ function addCameraMarkersWithFireRisk() {
 }
 // Adding to existing extra_js block
 
-let sensorData = {{ sensor_nodes_data|safe }} || [];
+let sensorData = {{ irrigation_nodes_data|safe }} || [];
 
 // Get sensor icon based on status
 function getSensorIcon(sensor) {
@@ -1020,6 +1024,12 @@ function addSensorMarkers() {
     }
 }
 
+// Call this after adding sensor markers
+function initializeSensors() {
+    addSensorMarkers();
+    updateSensorData();
+}
+
 // Update sensor data in real-time via WebSocket or polling
 function updateSensorData() {
     // Option 1: Polling every 30 seconds
@@ -1099,27 +1109,6 @@ function updateSensorMarkers(sensorReadings) {
             }
         });
     }
-}
-
-// Call this after adding sensor markers
-function initializeSensors() {
-    addSensorMarkers();
-    updateSensorData();
-}
-
-// Modify your initializeProjectMap function to include sensors
-function initializeProjectMap() {
-    // ... existing code ...
-    
-    // Add camera markers
-    addCameraMarkersWithFireRisk();
-    
-    // Add sensor markers
-    if (typeof sensorData !== 'undefined') {
-        initializeSensors();
-    }
-    
-    // ... rest of existing code ...
 }
 // Wait for everything to load
 window.addEventListener('load', function() {
@@ -1217,6 +1206,10 @@ function initializeProjectMap() {
         
         // Add camera markers with fire risk information
         addCameraMarkersWithFireRisk();
+
+        if (typeof sensorData !== 'undefined') {
+        addSensorMarkers();
+    }
         
         // Add scale control
         L.control.scale().addTo(projectMap);

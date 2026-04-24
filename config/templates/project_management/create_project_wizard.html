@@ -739,429 +739,429 @@
     </div>
 </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     
-    <script>
-        let map, cameraMap;
-        let drawnItems, cameraMarkers = [];
-        let farmBoundaries = [];
-        let cameras = [];
-        let nodes = [];
-        let selectedCameraMarker = null;
-        let selectedNodeMarker = null;
-        let cameraMarkersMap = new Map();
-        let nodeMarkersMap = new Map();
-        let activeDeviceTab = 'cameras';
-        let currentStep = {{ step|default:1 }};
-        let projectData = {};
+<script>
+    let map, cameraMap;
+    let drawnItems, cameraMarkers = [];
+    let farmBoundaries = [];
+    let cameras = [];
+    let nodes = [];
+    let selectedCameraMarker = null;
+    let selectedNodeMarker = null;
+    let cameraMarkersMap = new Map();
+    let nodeMarkersMap = new Map();
+    let activeDeviceTab = 'cameras';
+    let currentStep = {{ step|default:1 }};
+    let projectData = {};
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeCurrentStep();
-            setupEventListeners();
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCurrentStep();
+        setupEventListeners();
+    });
+
+    function initializeCurrentStep() {
+        if (currentStep === 2) setTimeout(() => initializeMainMap(), 100);
+        else if (currentStep === 3) setTimeout(() => initializeCameraMap(), 100);
+    }
+
+    function initializeMainMap() {
+        if (map) { map.invalidateSize(); return; }
+        map = L.map('map').setView([36.8065, 10.1815], 13);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems, remove: true },
+            draw: {
+                polygon: { allowIntersection: false, showArea: true },
+                polyline: false, circle: false, rectangle: false, marker: false, circlemarker: false
+            }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, function(e) {
+            const layer = e.layer;
+            drawnItems.clearLayers();
+            drawnItems.addLayer(layer);
+            const geoJSON = layer.toGeoJSON();
+            if (geoJSON.geometry && geoJSON.geometry.type === 'Polygon') {
+                farmBoundaries = [{ temp_id: 1, boundary: geoJSON.geometry, description: '' }];
+                updateBoundaryData();
+                document.getElementById('step2-submit').disabled = false;
+            } else {
+                showAlert('danger', 'Invalid boundary geometry. Please draw a proper polygon.');
+                document.getElementById('step2-submit').disabled = true;
+            }
         });
 
-        function initializeCurrentStep() {
-            if (currentStep === 2) setTimeout(() => initializeMainMap(), 100);
-            else if (currentStep === 3) setTimeout(() => initializeCameraMap(), 100);
-        }
+        map.on(L.Draw.Event.DELETED, function() {
+            farmBoundaries = [];
+            updateBoundaryData();
+            document.getElementById('step2-submit').disabled = true;
+        });
 
-        function initializeMainMap() {
-            if (map) { map.invalidateSize(); return; }
-            map = L.map('map').setView([36.8065, 10.1815], 13);
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri'
-            }).addTo(map);
+        setTimeout(() => map.invalidateSize(), 100);
+    }
 
-            drawnItems = new L.FeatureGroup();
-            map.addLayer(drawnItems);
+    function initializeCameraMap() {
+        if (cameraMap) { cameraMap.invalidateSize(); return; }
+        cameraMap = L.map('camera-map').setView([36.8065, 10.1815], 15);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri'
+        }).addTo(cameraMap);
 
-            const drawControl = new L.Control.Draw({
-                edit: { featureGroup: drawnItems, remove: true },
-                draw: {
-                    polygon: { allowIntersection: false, showArea: true },
-                    polyline: false, circle: false, rectangle: false, marker: false, circlemarker: false
-                }
-            });
-            map.addControl(drawControl);
+        cameraMarkers = new L.FeatureGroup();
+        cameraMap.addLayer(cameraMarkers);
 
-            map.on(L.Draw.Event.CREATED, function(e) {
-                const layer = e.layer;
-                drawnItems.clearLayers();
-                drawnItems.addLayer(layer);
-                const geoJSON = layer.toGeoJSON();
-                if (geoJSON.geometry && geoJSON.geometry.type === 'Polygon') {
-                    farmBoundaries = [{ temp_id: 1, boundary: geoJSON.geometry, description: '' }];
-                    updateBoundaryData();
-                    document.getElementById('step2-submit').disabled = false;
-                } else {
-                    showAlert('danger', 'Invalid boundary geometry. Please draw a proper polygon.');
-                    document.getElementById('step2-submit').disabled = true;
-                }
-            });
-
-            map.on(L.Draw.Event.DELETED, function() {
-                farmBoundaries = [];
-                updateBoundaryData();
-                document.getElementById('step2-submit').disabled = true;
-            });
-
-            setTimeout(() => map.invalidateSize(), 100);
-        }
-
-        function initializeCameraMap() {
-            if (cameraMap) { cameraMap.invalidateSize(); return; }
-            cameraMap = L.map('camera-map').setView([36.8065, 10.1815], 15);
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Esri'
-            }).addTo(cameraMap);
-
-            cameraMarkers = new L.FeatureGroup();
-            cameraMap.addLayer(cameraMarkers);
-
-            if (farmBoundaries.length > 0) {
-                try {
-                    const bl = L.geoJSON({ type: "Feature", geometry: farmBoundaries[0].boundary, properties: {} }, {
-                        style: { color: '#4CAF50', weight: 3, fillOpacity: 0.1, dashArray: '5, 5' }
-                    }).addTo(cameraMap);
-                    cameraMap.fitBounds(bl.getBounds(), { padding: [20, 20] });
-                } catch(e) { console.error('Error loading farm boundary:', e); }
-            }
-
-            cameraMap.on('click', function(e) {
-                if (activeDeviceTab === 'cameras') {
-                    const marker = L.marker(e.latlng, { icon: getCameraIcon(true), draggable: true });
-                    marker.addTo(cameraMarkers);
-                    selectedCameraMarker = marker;
-                    document.getElementById('camera-lat').value = e.latlng.lat;
-                    document.getElementById('camera-lng').value = e.latlng.lng;
-                    document.getElementById('camera-boundary-id').value = 1;
-                    marker.on('dragend', function() {
-                        const pos = marker.getLatLng();
-                        document.getElementById('camera-lat').value = pos.lat;
-                        document.getElementById('camera-lng').value = pos.lng;
-                    });
-                    new bootstrap.Modal(document.getElementById('cameraModal')).show();
-
-                } else if (activeDeviceTab === 'nodes') {
-                    const marker = L.marker(e.latlng, { icon: getNodeIcon(true), draggable: true });
-                    marker.addTo(cameraMarkers);
-                    selectedNodeMarker = marker;
-                    document.getElementById('node-lat').value = e.latlng.lat;
-                    document.getElementById('node-lng').value = e.latlng.lng;
-                    marker.on('dragend', function() {
-                        const pos = marker.getLatLng();
-                        document.getElementById('node-lat').value = pos.lat;
-                        document.getElementById('node-lng').value = pos.lng;
-                    });
-                    new bootstrap.Modal(document.getElementById('nodeModal')).show();
-                }
-            });
-
-            setTimeout(() => cameraMap.invalidateSize(), 100);
-        }
-
-        function switchDeviceTab(tab) {
-            activeDeviceTab = tab;
-            document.getElementById('cameras-tab').classList.toggle('active', tab === 'cameras');
-            document.getElementById('nodes-tab').classList.toggle('active', tab === 'nodes');
-            document.getElementById('cameras-panel').style.display = tab === 'cameras' ? 'block' : 'none';
-            document.getElementById('nodes-panel').style.display   = tab === 'nodes'   ? 'block' : 'none';
-        }
-
-        function getCameraIcon(selected = false) {
-            const bg = selected ? '#ff6b6b' : '#2196F3';
-            return L.divIcon({
-                className: 'camera-marker',
-                html: `<div style="background:${bg};width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;"><i class="fas fa-video"></i></div>`,
-                iconSize: [26, 26], iconAnchor: [13, 13]
-            });
-        }
-
-        function getNodeIcon(selected = false) {
-            const bg = selected ? '#ff6b6b' : '#4CAF50';
-            return L.divIcon({
-                className: 'node-marker',
-                html: `<div style="background:${bg};width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;"><i class="fas fa-microchip"></i></div>`,
-                iconSize: [26, 26], iconAnchor: [13, 13]
-            });
-        }
-
-        function setupEventListeners() {
-            document.getElementById('camera-type')?.addEventListener('change', function() {
-                const isIp = this.value === 'ip';
-                document.getElementById('ip-fields').style.display = isIp ? 'block' : 'none';
-                document.getElementById('cellular-fields').style.display = isIp ? 'none' : 'block';
-            });
-            document.getElementById('save-camera')?.addEventListener('click', saveCameraData);
-        }
-
-        function proceedToStep2() {
-            if (validateStep1()) { saveProjectData(); goToStep(2); }
-        }
-
-        function proceedToStep3() {
-            validateBoundaryData().then(valid => { if (valid) goToStep(3); });
-        }
-
-        function proceedToStep4() {
-            updateSummary();
-            goToStep(4);
-        }
-
-        function goToStep(step) {
-            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(`step${step}`).classList.add('active');
-            currentStep = step;
-            updateStepIndicators(step);
-            if (step === 2) setTimeout(() => initializeMainMap(), 100);
-            else if (step === 3) setTimeout(() => initializeCameraMap(), 100);
-        }
-
-        function updateStepIndicators(activeStep) {
-            for (let i = 1; i <= 4; i++) {
-                const circle = document.getElementById(`circle-${i}`);
-                const line   = document.getElementById(`line-${i}`);
-                if (i < activeStep) {
-                    circle.className = 'step-circle completed';
-                    circle.innerHTML = '<i class="fas fa-check"></i>';
-                    if (line) line.className = 'step-line completed';
-                } else if (i === activeStep) {
-                    circle.className = 'step-circle active';
-                    circle.innerHTML = i;
-                    if (line) line.className = 'step-line';
-                } else {
-                    circle.className = 'step-circle pending';
-                    circle.innerHTML = i;
-                    if (line) line.className = 'step-line';
-                }
-            }
-        }
-
-        function validateStep1() {
-            const name = document.querySelector('#id_name').value.trim();
-            const location = document.querySelector('#id_location_city').value.trim();
-            if (!name || !location) { showAlert('warning', 'Please fill in the required fields.'); return false; }
-            return true;
-        }
-
-        async function validateBoundaryData() {
-            if (farmBoundaries.length === 0) { showAlert('warning', 'Please draw at least one farm boundary.'); return false; }
+        if (farmBoundaries.length > 0) {
             try {
-                const response = await fetch('{% url "project_management:validate_boundary_step" %}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
-                    body: `farm_boundaries_data=${encodeURIComponent(JSON.stringify(farmBoundaries))}`
+                const bl = L.geoJSON({ type: "Feature", geometry: farmBoundaries[0].boundary, properties: {} }, {
+                    style: { color: '#4CAF50', weight: 3, fillOpacity: 0.1, dashArray: '5, 5' }
+                }).addTo(cameraMap);
+                cameraMap.fitBounds(bl.getBounds(), { padding: [20, 20] });
+            } catch(e) { console.error('Error loading farm boundary:', e); }
+        }
+
+        cameraMap.on('click', function(e) {
+            if (activeDeviceTab === 'cameras') {
+                const marker = L.marker(e.latlng, { icon: getCameraIcon(true), draggable: true });
+                marker.addTo(cameraMarkers);
+                selectedCameraMarker = marker;
+                document.getElementById('camera-lat').value = e.latlng.lat;
+                document.getElementById('camera-lng').value = e.latlng.lng;
+                document.getElementById('camera-boundary-id').value = 1;
+                marker.on('dragend', function() {
+                    const pos = marker.getLatLng();
+                    document.getElementById('camera-lat').value = pos.lat;
+                    document.getElementById('camera-lng').value = pos.lng;
                 });
-                const data = await response.json();
-                if (!data.valid) { showAlert('danger', data.message); return false; }
-                return true;
-            } catch(e) { showAlert('danger', 'Validation error occurred.'); return false; }
-        }
+                new bootstrap.Modal(document.getElementById('cameraModal')).show();
 
-        function saveProjectData() {
-            projectData = {
-                name: document.querySelector('#id_name').value,
-                description: document.querySelector('#id_description').value,
-                location_city: document.querySelector('#id_location_city').value,
-                contact_person: document.querySelector('#id_contact_person').value,
-                contact_phone: document.querySelector('#id_contact_phone').value
-            };
-        }
-
-        function updateBoundaryData() {
-            document.getElementById('farm_boundaries_data').value = JSON.stringify(farmBoundaries);
-        }
-
-        function updateCameraData() {
-            document.getElementById('cameras_data').value = JSON.stringify(cameras);
-            document.getElementById('camera-count').textContent = cameras.length;
-            document.getElementById('camera-count-tab').textContent = cameras.length;
-        }
-
-        function updateNodeData() {
-            document.getElementById('nodes_data').value = JSON.stringify(nodes);
-            document.getElementById('node-count').textContent = nodes.length;
-            document.getElementById('node-count-tab').textContent = nodes.length;
-        }
-
-        function validateCameraForm() {
-            const form = document.getElementById('camera-form');
-            const formData = new FormData(form);
-            const cameraType = formData.get('camera_type');
-            if (cameraType === 'ip') {
-                const ipAddress = formData.get('ip_address');
-                const port = formData.get('port');
-                if (!ipAddress || !port) { showAlert('warning', 'IP address and port are required.'); return false; }
-                const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-                if (!ipRegex.test(ipAddress)) { showAlert('warning', 'Please enter a valid IP address.'); return false; }
-                if (parseInt(port) < 1 || parseInt(port) > 65535) { showAlert('warning', 'Port must be between 1 and 65535.'); return false; }
-            } else if (cameraType === 'cellular') {
-                if (!formData.get('cellular_identifier')) { showAlert('warning', 'Cellular identifier is required.'); return false; }
+            } else if (activeDeviceTab === 'nodes') {
+                const marker = L.marker(e.latlng, { icon: getNodeIcon(true), draggable: true });
+                marker.addTo(cameraMarkers);
+                selectedNodeMarker = marker;
+                document.getElementById('node-lat').value = e.latlng.lat;
+                document.getElementById('node-lng').value = e.latlng.lng;
+                marker.on('dragend', function() {
+                    const pos = marker.getLatLng();
+                    document.getElementById('node-lat').value = pos.lat;
+                    document.getElementById('node-lng').value = pos.lng;
+                });
+                new bootstrap.Modal(document.getElementById('nodeModal')).show();
             }
+        });
+
+        setTimeout(() => cameraMap.invalidateSize(), 100);
+    }
+
+    function switchDeviceTab(tab) {
+        activeDeviceTab = tab;
+        document.getElementById('cameras-tab').classList.toggle('active', tab === 'cameras');
+        document.getElementById('nodes-tab').classList.toggle('active', tab === 'nodes');
+        document.getElementById('cameras-panel').style.display = tab === 'cameras' ? 'block' : 'none';
+        document.getElementById('nodes-panel').style.display   = tab === 'nodes'   ? 'block' : 'none';
+    }
+
+    function getCameraIcon(selected = false) {
+        const bg = selected ? '#ff6b6b' : '#2196F3';
+        return L.divIcon({
+            className: 'camera-marker',
+            html: `<div style="background:${bg};width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;"><i class="fas fa-video"></i></div>`,
+            iconSize: [26, 26], iconAnchor: [13, 13]
+        });
+    }
+
+    function getNodeIcon(selected = false) {
+        const bg = selected ? '#ff6b6b' : '#4CAF50';
+        return L.divIcon({
+            className: 'node-marker',
+            html: `<div style="background:${bg};width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;"><i class="fas fa-microchip"></i></div>`,
+            iconSize: [26, 26], iconAnchor: [13, 13]
+        });
+    }
+
+    function setupEventListeners() {
+        document.getElementById('camera-type')?.addEventListener('change', function() {
+            const isIp = this.value === 'ip';
+            document.getElementById('ip-fields').style.display = isIp ? 'block' : 'none';
+            document.getElementById('cellular-fields').style.display = isIp ? 'none' : 'block';
+        });
+        document.getElementById('save-camera')?.addEventListener('click', saveCameraData);
+    }
+
+    function proceedToStep2() {
+        if (validateStep1()) { saveProjectData(); goToStep(2); }
+    }
+
+    function proceedToStep3() {
+        validateBoundaryData().then(valid => { if (valid) goToStep(3); });
+    }
+
+    function proceedToStep4() {
+        updateSummary();
+        goToStep(4);
+    }
+
+    function goToStep(step) {
+        document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(`step${step}`).classList.add('active');
+        currentStep = step;
+        updateStepIndicators(step);
+        if (step === 2) setTimeout(() => initializeMainMap(), 100);
+        else if (step === 3) setTimeout(() => initializeCameraMap(), 100);
+    }
+
+    function updateStepIndicators(activeStep) {
+        for (let i = 1; i <= 4; i++) {
+            const circle = document.getElementById(`circle-${i}`);
+            const line   = document.getElementById(`line-${i}`);
+            if (i < activeStep) {
+                circle.className = 'step-circle completed';
+                circle.innerHTML = '<i class="fas fa-check"></i>';
+                if (line) line.className = 'step-line completed';
+            } else if (i === activeStep) {
+                circle.className = 'step-circle active';
+                circle.innerHTML = i;
+                if (line) line.className = 'step-line';
+            } else {
+                circle.className = 'step-circle pending';
+                circle.innerHTML = i;
+                if (line) line.className = 'step-line';
+            }
+        }
+    }
+
+    function validateStep1() {
+        const name = document.querySelector('#id_name').value.trim();
+        const location = document.querySelector('#id_location_city').value.trim();
+        if (!name || !location) { showAlert('warning', 'Please fill in the required fields.'); return false; }
+        return true;
+    }
+
+    async function validateBoundaryData() {
+        if (farmBoundaries.length === 0) { showAlert('warning', 'Please draw at least one farm boundary.'); return false; }
+        try {
+            const response = await fetch('{% url "project_management:validate_boundary_step" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: `farm_boundaries_data=${encodeURIComponent(JSON.stringify(farmBoundaries))}`
+            });
+            const data = await response.json();
+            if (!data.valid) { showAlert('danger', data.message); return false; }
             return true;
+        } catch(e) { showAlert('danger', 'Validation error occurred.'); return false; }
+    }
+
+    function saveProjectData() {
+        projectData = {
+            name: document.querySelector('#id_name').value,
+            description: document.querySelector('#id_description').value,
+            location_city: document.querySelector('#id_location_city').value,
+            contact_person: document.querySelector('#id_contact_person').value,
+            contact_phone: document.querySelector('#id_contact_phone').value
+        };
+    }
+
+    function updateBoundaryData() {
+        document.getElementById('farm_boundaries_data').value = JSON.stringify(farmBoundaries);
+    }
+
+    function updateCameraData() {
+        document.getElementById('cameras_data').value = JSON.stringify(cameras);
+        document.getElementById('camera-count').textContent = cameras.length;
+        document.getElementById('camera-count-tab').textContent = cameras.length;
+    }
+
+    function updateNodeData() {
+        document.getElementById('nodes_data').value = JSON.stringify(nodes);
+        document.getElementById('node-count').textContent = nodes.length;
+        document.getElementById('node-count-tab').textContent = nodes.length;
+    }
+
+    function validateCameraForm() {
+        const form = document.getElementById('camera-form');
+        const formData = new FormData(form);
+        const cameraType = formData.get('camera_type');
+        if (cameraType === 'ip') {
+            const ipAddress = formData.get('ip_address');
+            const port = formData.get('port');
+            if (!ipAddress || !port) { showAlert('warning', 'IP address and port are required.'); return false; }
+            const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            if (!ipRegex.test(ipAddress)) { showAlert('warning', 'Please enter a valid IP address.'); return false; }
+            if (parseInt(port) < 1 || parseInt(port) > 65535) { showAlert('warning', 'Port must be between 1 and 65535.'); return false; }
+        } else if (cameraType === 'cellular') {
+            if (!formData.get('cellular_identifier')) { showAlert('warning', 'Cellular identifier is required.'); return false; }
+        }
+        return true;
+    }
+
+    function saveCameraData() {
+        if (!validateCameraForm()) return;
+        const formData = new FormData(document.getElementById('camera-form'));
+        const camera = {
+            temp_id: Date.now(),
+            farm_boundary_temp_id: formData.get('farm_boundary_temp_id') || 1,
+            camera_type: formData.get('camera_type'),
+            description: formData.get('description') || '',
+            ip_address: formData.get('ip_address') || null,
+            port: formData.get('port') ? parseInt(formData.get('port')) : null,
+            cellular_identifier: formData.get('cellular_identifier') || null,
+            location: { lat: parseFloat(formData.get('latitude')), lng: parseFloat(formData.get('longitude')) }
+        };
+        if (isNaN(camera.location.lat) || isNaN(camera.location.lng)) { showAlert('danger', 'Valid camera location is required.'); return; }
+        cameras.push(camera);
+        updateCameraData();
+        if (selectedCameraMarker) {
+            selectedCameraMarker.setIcon(getCameraIcon(false));
+            selectedCameraMarker.dragging.disable();
+            cameraMarkersMap.set(camera.temp_id, selectedCameraMarker);
+            selectedCameraMarker.bindPopup(`<strong>Camera</strong><br><small>${camera.camera_type === 'ip' ? camera.ip_address+':'+camera.port : camera.cellular_identifier}</small>`);
+        }
+        addCameraToList(camera);
+        bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
+        document.getElementById('camera-form').reset();
+        selectedCameraMarker = null;
+        showAlert('success', 'Camera added successfully!');
+    }
+
+    function addCameraToList(camera) {
+        const list = document.getElementById('cameras-list');
+        const noCamera = document.getElementById('no-cameras');
+        if (noCamera) noCamera.remove();
+        const info = camera.camera_type === 'ip' ? `${camera.ip_address}:${camera.port}` : camera.cellular_identifier;
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.innerHTML = `
+            <div class="item-info">
+                <h6 class="item-name">Camera #${cameras.length}</h6>
+                <p class="item-details">Type: ${camera.camera_type} | ${info}</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-danger btn-sm" onclick="deleteCamera(${camera.temp_id})"><i class="fas fa-trash"></i></button>
+            </div>`;
+        list.appendChild(div);
+    }
+
+    function deleteCamera(tempId) {
+        cameras = cameras.filter(c => c.temp_id !== tempId);
+        updateCameraData();
+        const marker = cameraMarkersMap.get(tempId);
+        if (marker && cameraMarkers) { cameraMarkers.removeLayer(marker); cameraMarkersMap.delete(tempId); }
+        document.querySelector(`[onclick="deleteCamera(${tempId})"]`)?.closest('.item-card')?.remove();
+        if (cameras.length === 0) {
+            document.getElementById('cameras-list').innerHTML = `<div class="text-center text-muted py-4" id="no-cameras"><i class="fas fa-video fa-2x mb-2"></i><p>No cameras added yet.</p></div>`;
+        }
+        showAlert('success', 'Camera deleted.');
+    }
+
+    function saveNodeData() {
+        const deviceId = document.getElementById('node-device-id').value.trim();
+        const name     = document.getElementById('node-name').value.trim();
+        const nodeType = document.getElementById('node-type').value;
+        const desc     = document.getElementById('node-description').value.trim();
+        const lat      = parseFloat(document.getElementById('node-lat').value);
+        const lng      = parseFloat(document.getElementById('node-lng').value);
+
+        if (!deviceId) { showAlert('warning', 'Device ID is required.'); return; }
+        if (!name)     { showAlert('warning', 'Node name is required.'); return; }
+        if (isNaN(lat) || isNaN(lng)) { showAlert('warning', 'Please place the pin on the map first.'); return; }
+        if (nodes.some(n => n.device_id === deviceId)) { showAlert('warning', `Device ID "${deviceId}" already added.`); return; }
+
+        const node = { temp_id: Date.now(), farm_boundary_temp_id: 1, device_id: deviceId, name, node_type: nodeType, description: desc, location: { lat, lng } };
+        nodes.push(node);
+        updateNodeData();
+
+        if (selectedNodeMarker) {
+            selectedNodeMarker.setIcon(getNodeIcon(false));
+            selectedNodeMarker.dragging.disable();
+            nodeMarkersMap.set(node.temp_id, selectedNodeMarker);
+            selectedNodeMarker.bindPopup(`<strong>${node.name}</strong><br><small>${node.device_id}</small>`);
         }
 
-        function saveCameraData() {
-            if (!validateCameraForm()) return;
-            const formData = new FormData(document.getElementById('camera-form'));
-            const camera = {
-                temp_id: Date.now(),
-                farm_boundary_temp_id: formData.get('farm_boundary_temp_id') || 1,
-                camera_type: formData.get('camera_type'),
-                description: formData.get('description') || '',
-                ip_address: formData.get('ip_address') || null,
-                port: formData.get('port') ? parseInt(formData.get('port')) : null,
-                cellular_identifier: formData.get('cellular_identifier') || null,
-                location: { lat: parseFloat(formData.get('latitude')), lng: parseFloat(formData.get('longitude')) }
-            };
-            if (isNaN(camera.location.lat) || isNaN(camera.location.lng)) { showAlert('danger', 'Valid camera location is required.'); return; }
-            cameras.push(camera);
-            updateCameraData();
-            if (selectedCameraMarker) {
-                selectedCameraMarker.setIcon(getCameraIcon(false));
-                selectedCameraMarker.dragging.disable();
-                cameraMarkersMap.set(camera.temp_id, selectedCameraMarker);
-                selectedCameraMarker.bindPopup(`<strong>Camera</strong><br><small>${camera.camera_type === 'ip' ? camera.ip_address+':'+camera.port : camera.cellular_identifier}</small>`);
-            }
-            addCameraToList(camera);
-            bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
-            document.getElementById('camera-form').reset();
-            selectedCameraMarker = null;
-            showAlert('success', 'Camera added successfully!');
+        addNodeToList(node);
+        bootstrap.Modal.getInstance(document.getElementById('nodeModal')).hide();
+        document.getElementById('node-form').reset();
+        selectedNodeMarker = null;
+        showAlert('success', 'Sensor node added!');
+    }
+
+    function addNodeToList(node) {
+        const list = document.getElementById('nodes-list');
+        const empty = document.getElementById('no-nodes');
+        if (empty) empty.remove();
+        const typeLabel = node.node_type === 'bme280_soil' ? 'BME280 + Soil Moisture' : 'Salinity Sensor';
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.innerHTML = `
+            <div class="item-info">
+                <h6 class="item-name">${node.name}</h6>
+                <p class="item-details">ID: ${node.device_id} | Type: ${typeLabel}</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-danger btn-sm" onclick="deleteNode(${node.temp_id})"><i class="fas fa-trash"></i></button>
+            </div>`;
+        list.appendChild(div);
+    }
+
+    function deleteNode(tempId) {
+        nodes = nodes.filter(n => n.temp_id !== tempId);
+        updateNodeData();
+        const marker = nodeMarkersMap.get(tempId);
+        if (marker && cameraMarkers) { cameraMarkers.removeLayer(marker); nodeMarkersMap.delete(tempId); }
+        document.querySelector(`[onclick="deleteNode(${tempId})"]`)?.closest('.item-card')?.remove();
+        if (nodes.length === 0) {
+            document.getElementById('nodes-list').innerHTML = `<div class="text-center text-muted py-4" id="no-nodes"><i class="fas fa-microchip fa-2x mb-2"></i><p>No sensor nodes added yet.</p></div>`;
         }
+        showAlert('success', 'Node removed.');
+    }
 
-        function addCameraToList(camera) {
-            const list = document.getElementById('cameras-list');
-            const noCamera = document.getElementById('no-cameras');
-            if (noCamera) noCamera.remove();
-            const info = camera.camera_type === 'ip' ? `${camera.ip_address}:${camera.port}` : camera.cellular_identifier;
-            const div = document.createElement('div');
-            div.className = 'item-card';
-            div.innerHTML = `
-                <div class="item-info">
-                    <h6 class="item-name">Camera #${cameras.length}</h6>
-                    <p class="item-details">Type: ${camera.camera_type} | ${info}</p>
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-danger btn-sm" onclick="deleteCamera(${camera.temp_id})"><i class="fas fa-trash"></i></button>
-                </div>`;
-            list.appendChild(div);
-        }
+    function updateSummary() {
+        document.getElementById('summary-name').textContent = projectData.name || '-';
+        document.getElementById('summary-location').textContent = projectData.location_city || '-';
+        document.getElementById('summary-boundaries').textContent = farmBoundaries.length;
+        document.getElementById('summary-cameras').textContent = cameras.length;
+        document.getElementById('summary-nodes').textContent = nodes.length;
+    }
 
-        function deleteCamera(tempId) {
-            cameras = cameras.filter(c => c.temp_id !== tempId);
-            updateCameraData();
-            const marker = cameraMarkersMap.get(tempId);
-            if (marker && cameraMarkers) { cameraMarkers.removeLayer(marker); cameraMarkersMap.delete(tempId); }
-            document.querySelector(`[onclick="deleteCamera(${tempId})"]`)?.closest('.item-card')?.remove();
-            if (cameras.length === 0) {
-                document.getElementById('cameras-list').innerHTML = `<div class="text-center text-muted py-4" id="no-cameras"><i class="fas fa-video fa-2x mb-2"></i><p>No cameras added yet.</p></div>`;
-            }
-            showAlert('success', 'Camera deleted.');
-        }
+    function createProject() {
+        const form = document.getElementById('project-creation-form');
+        const hiddenInputs = `
+            <input type="hidden" name="project_name" value="${escapeHtml(projectData.name || '')}">
+            <input type="hidden" name="project_description" value="${escapeHtml(projectData.description || '')}">
+            <input type="hidden" name="location_city" value="${escapeHtml(projectData.location_city || '')}">
+            <input type="hidden" name="contact_person" value="${escapeHtml(projectData.contact_person || '')}">
+            <input type="hidden" name="contact_phone" value="${escapeHtml(projectData.contact_phone || '')}">
+            <input type="hidden" name="farm_boundaries_data" value='${JSON.stringify(farmBoundaries)}'>
+            <input type="hidden" name="cameras_data" value='${JSON.stringify(cameras)}'>
+            <input type="hidden" name="nodes_data" value='${JSON.stringify(nodes)}'>
+        `;
+        form.innerHTML = hiddenInputs + `<input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">`;
+        form.submit();
+    }
 
-        function saveNodeData() {
-            const deviceId = document.getElementById('node-device-id').value.trim();
-            const name     = document.getElementById('node-name').value.trim();
-            const nodeType = document.getElementById('node-type').value;
-            const desc     = document.getElementById('node-description').value.trim();
-            const lat      = parseFloat(document.getElementById('node-lat').value);
-            const lng      = parseFloat(document.getElementById('node-lng').value);
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-            if (!deviceId) { showAlert('warning', 'Device ID is required.'); return; }
-            if (!name)     { showAlert('warning', 'Node name is required.'); return; }
-            if (isNaN(lat) || isNaN(lng)) { showAlert('warning', 'Please place the pin on the map first.'); return; }
-            if (nodes.some(n => n.device_id === deviceId)) { showAlert('warning', `Device ID "${deviceId}" already added.`); return; }
-
-            const node = { temp_id: Date.now(), farm_boundary_temp_id: 1, device_id: deviceId, name, node_type: nodeType, description: desc, location: { lat, lng } };
-            nodes.push(node);
-            updateNodeData();
-
-            if (selectedNodeMarker) {
-                selectedNodeMarker.setIcon(getNodeIcon(false));
-                selectedNodeMarker.dragging.disable();
-                nodeMarkersMap.set(node.temp_id, selectedNodeMarker);
-                selectedNodeMarker.bindPopup(`<strong>${node.name}</strong><br><small>${node.device_id}</small>`);
-            }
-
-            addNodeToList(node);
-            bootstrap.Modal.getInstance(document.getElementById('nodeModal')).hide();
-            document.getElementById('node-form').reset();
-            selectedNodeMarker = null;
-            showAlert('success', 'Sensor node added!');
-        }
-
-        function addNodeToList(node) {
-            const list = document.getElementById('nodes-list');
-            const empty = document.getElementById('no-nodes');
-            if (empty) empty.remove();
-            const typeLabel = node.node_type === 'bme280_soil' ? 'BME280 + Soil Moisture' : 'Salinity Sensor';
-            const div = document.createElement('div');
-            div.className = 'item-card';
-            div.innerHTML = `
-                <div class="item-info">
-                    <h6 class="item-name">${node.name}</h6>
-                    <p class="item-details">ID: ${node.device_id} | Type: ${typeLabel}</p>
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-danger btn-sm" onclick="deleteNode(${node.temp_id})"><i class="fas fa-trash"></i></button>
-                </div>`;
-            list.appendChild(div);
-        }
-
-        function deleteNode(tempId) {
-            nodes = nodes.filter(n => n.temp_id !== tempId);
-            updateNodeData();
-            const marker = nodeMarkersMap.get(tempId);
-            if (marker && cameraMarkers) { cameraMarkers.removeLayer(marker); nodeMarkersMap.delete(tempId); }
-            document.querySelector(`[onclick="deleteNode(${tempId})"]`)?.closest('.item-card')?.remove();
-            if (nodes.length === 0) {
-                document.getElementById('nodes-list').innerHTML = `<div class="text-center text-muted py-4" id="no-nodes"><i class="fas fa-microchip fa-2x mb-2"></i><p>No sensor nodes added yet.</p></div>`;
-            }
-            showAlert('success', 'Node removed.');
-        }
-
-        function updateSummary() {
-            document.getElementById('summary-name').textContent = projectData.name || '-';
-            document.getElementById('summary-location').textContent = projectData.location_city || '-';
-            document.getElementById('summary-boundaries').textContent = farmBoundaries.length;
-            document.getElementById('summary-cameras').textContent = cameras.length;
-            document.getElementById('summary-nodes').textContent = nodes.length;
-        }
-
-        function createProject() {
-            const form = document.getElementById('project-creation-form');
-            const hiddenInputs = `
-                <input type="hidden" name="project_name" value="${escapeHtml(projectData.name || '')}">
-                <input type="hidden" name="project_description" value="${escapeHtml(projectData.description || '')}">
-                <input type="hidden" name="location_city" value="${escapeHtml(projectData.location_city || '')}">
-                <input type="hidden" name="contact_person" value="${escapeHtml(projectData.contact_person || '')}">
-                <input type="hidden" name="contact_phone" value="${escapeHtml(projectData.contact_phone || '')}">
-                <input type="hidden" name="farm_boundaries_data" value='${JSON.stringify(farmBoundaries)}'>
-                <input type="hidden" name="cameras_data" value='${JSON.stringify(cameras)}'>
-                <input type="hidden" name="nodes_data" value='${JSON.stringify(nodes)}'>
-            `;
-            form.innerHTML = hiddenInputs + `<input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">`;
-            form.submit();
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function showAlert(type, message) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            const formContent = document.querySelector('.form-content');
-            formContent.insertBefore(alertDiv, formContent.firstChild);
-            setTimeout(() => { bootstrap.Alert.getInstance(alertDiv)?.close(); }, 5000);
-        }
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        const formContent = document.querySelector('.form-content');
+        formContent.insertBefore(alertDiv, formContent.firstChild);
+        setTimeout(() => { bootstrap.Alert.getInstance(alertDiv)?.close(); }, 5000);
+    }
 </script>
 </body>
 </html>

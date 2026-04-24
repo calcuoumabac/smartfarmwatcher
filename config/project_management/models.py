@@ -78,7 +78,10 @@ class Project(models.Model):
     def get_total_cameras(self):
         """Get total number of cameras in this project"""
         return self.cameras.filter(is_active=True).count()
-    
+    def get_total_irrigation_nodes(self):
+        """Get total number of irrigation nodes in this project"""
+        return self.irrigation_nodes.filter(is_active=True).count()
+
     def get_total_farm_area_hectares(self):
         """Calculate total farm area in hectares from all farm boundaries"""
         total_area = 0
@@ -224,6 +227,10 @@ class FarmBoundary(models.Model):
     def get_cameras_count(self):
         """Get number of cameras in this farm boundary"""
         return self.cameras.filter(is_active=True).count()
+    #added sensor 
+    def get_irrigation_nodes_count(self):
+        """Get number of irrigation nodes in this farm boundary"""
+        return self.irrigation_nodes.filter(is_active=True).count()
     
     def get_cameras_inside_boundary(self):
         """Get all cameras that are inside this farm boundary"""
