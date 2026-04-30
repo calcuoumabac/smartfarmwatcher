@@ -24,8 +24,9 @@ from rest_framework.response import Response
 from utils.fire_risk import FireRiskPredictor
 
 # Local app imports
-from .models import Project, FarmBoundary, Camera
+from .models import Project, FarmBoundary, Camera 
 from .forms import ProjectForm
+
 
 @login_required
 def create_project_wizard(request):
@@ -218,7 +219,6 @@ def _handle_project_creation(request):
             nodes_data = []
 
         from sensors.models import IrrigationNode
-        from django.contrib.gis.geos import Point
 
         nodes_created = 0
         for node_data in nodes_data:

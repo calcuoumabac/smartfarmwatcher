@@ -32,7 +32,17 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1' ,'192.168.1.4', '192.168.1.97', '*' ]
+
+#added by me 
+# CORS
+'''CORS_ALLOW_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:52300",
+    "http://127.0.0.1:8000",
+    "http://192.168.1.4:8000",  # your machine's IP
+]'''
+
 
 DYNAMIC_IP_1 = config('DYNAMIC_IP_1')
 DYNAMIC_IP_2 = config('DYNAMIC_IP_2')
@@ -50,7 +60,8 @@ if PUBLIC_DOMAINS:
     domains = [domain.strip() for domain in PUBLIC_DOMAINS.split(',') if domain.strip()]
     ALLOWED_HOSTS.extend(domains)
 
-CORS_ALLOWED_ALL_ORIGINS = True
+#CORS_ALLOWED_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
@@ -81,6 +92,7 @@ if DEBUG:
     ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', # new
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -90,6 +102,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -176,7 +189,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 AUTH_USER_MODEL = 'authentication.AppUser'
 
