@@ -508,7 +508,7 @@
                         </div>
                     </div>
                 </div>
-                <div>
+                <div class="d-flex align-items-start gap-2">
                     <span class="project-status-badge {% if not project.is_active %}inactive{% endif %}">
     {% if project.is_active %}
         <i class="fas fa-check"></i> Active
@@ -516,6 +516,9 @@
         <i class="fas fa-pause"></i> Inactive
     {% endif %}
 </span>
+                    <a href="{% url 'project_management:project_delete' project.slug %}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash-alt"></i> Delete Project
+                    </a>
                 </div>
             </div>
         </div>
@@ -706,14 +709,12 @@
                                 <th>Device ID</th>
                                 <th>Type</th>
                                 <th>Farm Boundary</th>
-                                <th>Temperature</th>
-                                <th>Humidity</th>
-                                <th>Soil Moisture</th>
+                                <th>Readings</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for node in irrigation_nodes %}
-                            <tr>
+                            <tr id="sensor-row-{{ node.id }}">
                                 <td>{{ node.name }}</td>
                                 <td><code>{{ node.device_id }}</code></td>
                                 <td>
@@ -726,11 +727,21 @@
                                         <span class="text-muted">Unassigned</span>
                                     {% endif %}
                                 </td>
-                                {% with node.get_latest_reading as reading %}
-                                <td>{% if reading and reading.temperature %}{{ reading.temperature }}°C{% else %}--{% endif %}</td>
-                                <td>{% if reading and reading.humidity %}{{ reading.humidity }}%{% else %}--{% endif %}</td>
-                                <td>{% if reading and reading.soil_moisture %}{{ reading.soil_moisture }}%{% else %}--{% endif %}</td>
-                                {% endwith %}
+                                <td>
+                                    {% with node.get_latest_reading as reading %}
+                                        {% if node.node_type == 'bme280_soil' %}
+                                            <div><strong>Temp:</strong> {% if reading and reading.temperature %}{{ reading.temperature }}°C{% else %}--{% endif %}</div>
+                                            <div><strong>Humidity:</strong> {% if reading and reading.humidity %}{{ reading.humidity }}%{% else %}--{% endif %}</div>
+                                            <div><strong>Soil Moisture:</strong> {% if reading and reading.soil_moisture %}{{ reading.soil_moisture }}%{% else %}--{% endif %}</div>
+                                        {% elif node.node_type == 'salinity' %}
+                                            <div><strong>Salinity:</strong> {% if reading and reading.salinity %}{{ reading.salinity }}{% else %}--{% endif %}</div>
+                                            <div><strong>Wind Speed:</strong> {% if reading and reading.wind_speed %}{{ reading.wind_speed }} m/s{% else %}--{% endif %}</div>
+                                            <div><strong>Rainfall:</strong> {% if reading and reading.rainfall %}{{ reading.rainfall }} mm{% else %}--{% endif %}</div>
+                                        {% else %}
+                                            <span class="text-muted">No readings available</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -931,6 +942,101 @@ function addCameraMarkersWithFireRisk() {
         });
     }
 }
+
+function addNodeMarkers() {
+    if (irrigationNodesData && Array.isArray(irrigationNodesData) && irrigationNodesData.length > 0) {
+        irrigationNodesData.forEach(function(node, index) {
+            try {
+                if (node && !isNaN(node.latitude) && !isNaN(node.longitude)) {
+                    const nodeIcon = getNodeIcon(node);
+                    
+                    const marker = L.marker([node.latitude, node.longitude], {
+                        icon: nodeIcon
+                    }).addTo(projectMap);
+                    
+                    const popupContent = createNodePopup(node);
+                    marker.bindPopup(popupContent, {
+                        maxWidth: 300,
+                        className: 'node-popup-container'
+                    });
+                }
+            } catch (e) {
+                console.error('❌ Error loading node:', e);
+            }
+        });
+    }
+}
+
+function getNodeIcon(node) {
+    let color;
+    if (node.node_type === 'salinity') {
+        color = '#17a2b8';  // Info color for salinity
+    } else {
+        color = '#2196F3';  // Blue for BME
+    }
+    
+    return L.divIcon({
+        className: 'node-marker',
+        html: `<div style="
+            background: ${color};
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+        ">
+            <i class="fas fa-microchip"></i>
+        </div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+    });
+}
+
+function createNodePopup(node) {
+    const lastReading = node.last_reading || {};
+    let readingsHtml = '';
+    
+    if (node.node_type === 'bme280_soil') {
+        readingsHtml = `
+            ${lastReading.temperature ? `<div><strong>🌡️ Temperature:</strong> ${lastReading.temperature}°C</div>` : ''}
+            ${lastReading.humidity ? `<div><strong>💧 Humidity:</strong> ${lastReading.humidity}%</div>` : ''}
+            ${lastReading.soil_moisture ? `<div><strong>🌱 Soil Moisture:</strong> ${lastReading.soil_moisture}%</div>` : ''}
+        `;
+    } else if (node.node_type === 'salinity') {
+        readingsHtml = `
+            ${lastReading.salinity ? `<div><strong>🧂 Salinity:</strong> ${lastReading.salinity}</div>` : ''}
+            ${lastReading.wind_speed ? `<div><strong>💨 Wind Speed:</strong> ${lastReading.wind_speed} m/s</div>` : ''}
+            ${lastReading.rainfall ? `<div><strong>☔ Rainfall:</strong> ${lastReading.rainfall} mm</div>` : ''}
+        `;
+    }
+    
+    return `
+        <div class="node-popup" style="min-width: 260px;">
+            <h6 style="margin-bottom: 10px; color: #2c3e50;">
+                <i class="fas fa-microchip"></i> ${node.name}
+            </h6>
+            <div style="margin-bottom: 10px;">
+                <strong>Device ID:</strong> ${node.device_id}<br>
+                <strong>Type:</strong> ${node.node_type_display || node.node_type}<br>
+                <strong>Status:</strong> <span style="color: ${node.status === 'ok' ? '#28a745' : node.status === 'warning' ? '#ff9800' : '#dc3545'};">${node.status}</span><br>
+                <strong>Battery:</strong> ${node.battery_level ? node.battery_level + '%' : 'N/A'}
+            </div>
+            <div style="margin-bottom: 10px;">
+                ${readingsHtml}
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px;">
+                <div>Last Update: ${lastReading.timestamp ? new Date(lastReading.timestamp).toLocaleString() : 'N/A'}</div>
+                <div>Farm Boundary #${node.farm_boundary_id || 'N/A'}</div>
+            </div>
+        </div>
+    `;
+}
+
 // Adding to existing extra_js block
 
 let sensorData = {{ irrigation_nodes_data|safe }} || [];
@@ -961,7 +1067,24 @@ function createSensorPopup(sensor) {
     const lastReading = sensor.last_reading || {};
     const status = sensor.status || 'unknown';
     const statusColor = status === 'ok' ? '#28a745' : (status === 'warning' ? '#ff9800' : '#dc3545');
-    
+    let readingsHtml = '';
+
+    if (sensor.node_type === 'salinity') {
+        readingsHtml = `
+            <div><strong>🧂 Salinity:</strong> ${lastReading.salinity || '--'}</div>
+            <div><strong>💨 Wind Speed:</strong> ${lastReading.wind_speed || '--'} m/s</div>
+            <div><strong>☔ Rainfall:</strong> ${lastReading.rainfall || '--'} mm</div>
+        `;
+    } else {
+        readingsHtml = `
+            <div><strong>🌡️ Temperature:</strong> ${lastReading.temperature || '--'}°C</div>
+            <div><strong>💧 Humidity:</strong> ${lastReading.humidity || '--'}%</div>
+            <div><strong>🌱 Soil Moisture:</strong> ${lastReading.soil_moisture || '--'}%</div>
+            ${lastReading.rainfall ? `<div><strong>☔ Rainfall:</strong> ${lastReading.rainfall} mm</div>` : ''}
+            ${lastReading.wind_speed ? `<div><strong>💨 Wind Speed:</strong> ${lastReading.wind_speed} m/s</div>` : ''}
+        `;
+    }
+
     return `
         <div class="sensor-popup" style="min-width: 260px;">
             <h6 style="margin-bottom: 10px; color: #2c3e50;">
@@ -969,7 +1092,7 @@ function createSensorPopup(sensor) {
             </h6>
             
             <div style="margin-bottom: 10px;">
-                <span class="badge bg-info">${sensor.sensor_type || 'Unknown'}</span>
+                <span class="badge bg-info">${sensor.node_type || 'Unknown'}</span>
                 <span class="badge" style="background-color: ${statusColor};">${status.toUpperCase()}</span>
             </div>
             
@@ -984,11 +1107,7 @@ function createSensorPopup(sensor) {
             </div>
             
             <div style="margin-bottom: 10px; font-size: 13px;">
-                <div><strong>🌡️ Temperature:</strong> ${lastReading.temperature || '--'}°C</div>
-                <div><strong>💧 Humidity:</strong> ${lastReading.humidity || '--'}%</div>
-                <div><strong>🌱 Soil Moisture:</strong> ${lastReading.soil_moisture || '--'}%</div>
-                ${lastReading.rainfall ? `<div><strong>☔ Rainfall:</strong> ${lastReading.rainfall} mm</div>` : ''}
-                ${lastReading.wind_speed ? `<div><strong>💨 Wind Speed:</strong> ${lastReading.wind_speed} m/s</div>` : ''}
+                ${readingsHtml}
             </div>
             
             <div style="margin-top: 10px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px;">
@@ -1001,12 +1120,12 @@ function createSensorPopup(sensor) {
 
 // Add sensor markers to map
 function addSensorMarkers() {
+    window.sensorMarkers = {};  // ✅ initialize store
     if (sensorData && Array.isArray(sensorData) && sensorData.length > 0) {
         sensorData.forEach(function(sensor, index) {
             try {
                 if (sensor && !isNaN(sensor.latitude) && !isNaN(sensor.longitude)) {
                     const sensorIcon = getSensorIcon(sensor);
-                    
                     const marker = L.marker([sensor.latitude, sensor.longitude], {
                         icon: sensorIcon
                     }).addTo(projectMap);
@@ -1032,58 +1151,49 @@ function initializeSensors() {
 
 // Update sensor data in real-time via WebSocket or polling
 function updateSensorData() {
-    // Option 1: Polling every 30 seconds
     setInterval(function() {
-        fetch(`/api/projects/${projectId}/sensors/latest/`, {
-            headers: {
-                'X-CSRFToken': csrfToken,
-            }
+        fetch(`/api/projects/${projectId}/sensors/latest/`, { //must match your Django URL pattern
+            headers: { 'X-CSRFToken': csrfToken }
         })
         .then(response => response.json())
         .then(data => {
             updateSensorTable(data);
-            updateSensorMarkers(data);
+            updateSensorMarkers(data);  // updates map popups too
         })
-        .catch(error => console.error('Error updating sensor data:', error));
-    }, 30000);
-    
-    // Option 2: WebSocket connection for real-time updates
-    // const socket = new WebSocket(`ws://your-domain/ws/sensors/${projectId}/`);
-    // socket.onmessage = function(e) {
-    //     const data = JSON.parse(e.data);
-    //     updateSensorTable(data);
-    //     updateSensorMarkers(data);
-    // };
+        .catch(error => console.error('Polling error:', error));
+    }, 30000); // every 30 seconds
 }
 
 function updateSensorTable(sensorReadings) {
     sensorReadings.forEach(reading => {
-        const row = document.getElementById(`sensor-row-${reading.sensor_id}`);
-        if (row) {
-            // Update last reading time
-            const lastReadingCell = document.getElementById(`last-reading-${reading.sensor_id}`);
-            if (lastReadingCell) {
-                lastReadingCell.innerHTML = `<small>${new Date(reading.timestamp).toLocaleString()}</small>`;
+        // Update temperature
+        const tempCell = document.getElementById(`temp-${reading.sensor_id}`);
+        if (tempCell) {
+            tempCell.innerHTML = reading.temperature ? `${reading.temperature.toFixed(2)}°C` : '--';
+        }
+
+        // Update humidity
+        const humCell = document.getElementById(`humidity-${reading.sensor_id}`);
+        if (humCell) {
+            humCell.innerHTML = reading.humidity ? `${reading.humidity.toFixed(2)}%` : '--';
+        }
+
+        // Update soil moisture
+        const moistureCell = document.getElementById(`moisture-${reading.sensor_id}`);
+        if (moistureCell) {
+            moistureCell.innerHTML = reading.soil_moisture ? `${reading.soil_moisture.toFixed(2)}%` : '--';
+        }
+
+        // Update map popup if marker exists
+        if (window.sensorMarkers && window.sensorMarkers[reading.sensor_id]) {
+            const marker = window.sensorMarkers[reading.sensor_id];
+            const sensor = sensorData.find(s => s.id === reading.sensor_id);
+            if (sensor) {
+                sensor.last_reading = reading;  // reading IS the last_reading here
+                sensor.status = reading.status;
+                marker.setPopupContent(createSensorPopup(sensor));
+                marker.setIcon(getSensorIcon(sensor));
             }
-            
-            // Update status
-            const statusCell = document.getElementById(`status-${reading.sensor_id}`);
-            if (statusCell) {
-                let statusBadge = '';
-                if (reading.status === 'ok') {
-                    statusBadge = '<span class="badge bg-success">Online</span>';
-                } else if (reading.status === 'warning') {
-                    statusBadge = '<span class="badge bg-warning">Warning</span>';
-                } else {
-                    statusBadge = '<span class="badge bg-danger">Critical</span>';
-                }
-                statusCell.innerHTML = statusBadge;
-            }
-            
-            // Update sensor readings
-            document.getElementById(`temp-${reading.sensor_id}`).innerHTML = reading.temperature ? `${reading.temperature}°C` : '--';
-            document.getElementById(`humidity-${reading.sensor_id}`).innerHTML = reading.humidity ? `${reading.humidity}%` : '--';
-            document.getElementById(`moisture-${reading.sensor_id}`).innerHTML = reading.soil_moisture ? `${reading.soil_moisture}%` : '--';
         }
     });
 }
@@ -1206,9 +1316,12 @@ function initializeProjectMap() {
         
         // Add camera markers with fire risk information
         addCameraMarkersWithFireRisk();
+        
+        // Add node markers with sensor readings
+        addNodeMarkers();
 
         if (typeof sensorData !== 'undefined') {
-        addSensorMarkers();
+        initializeSensors();
     }
         
         // Add scale control
@@ -1267,5 +1380,6 @@ document.addEventListener('DOMContentLoaded', function() {
 {% csrf_token %}
 <script>
 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const projectId = {{ project.id }}; 
 </script>
 {% endblock %}

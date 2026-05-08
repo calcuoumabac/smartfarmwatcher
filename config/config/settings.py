@@ -28,6 +28,8 @@ GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default='GDAL/geos_c.dll')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
+#this is for my grok api key which is used in the frontend to send messages to the grok api for chatgpt integration
+GROQ_API_KEY = config('GROQ_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True

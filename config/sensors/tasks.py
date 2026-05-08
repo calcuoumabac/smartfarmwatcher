@@ -17,6 +17,7 @@ def save_sensor_reading(self, data):
         
         # Import model here to avoid circular imports
         from sensors.models import SensorReading
+        from sensors.models import IrrigationNode 
         
         # Extract data
         device_id = data.get('device_id')
@@ -37,15 +38,26 @@ def save_sensor_reading(self, data):
         humidity = data.get('humidity')
         soil_moisture = data.get('soil_moisture')
         raw_data = data.get('raw_data')
+        salinity=data.get('salinity')  # Extract salinity if available
         
-        # Create and save the reading
+        # linking sesnosr reading to node via device_id
+        node = None
+        try:
+            node = IrrigationNode.objects.get(device_id=device_id)
+        except IrrigationNode.DoesNotExist:
+            logger.warning(f'No IrrigationNode found for device_id={device_id}')
+        except IrrigationNode.MultipleObjectsReturned:
+            node = IrrigationNode.objects.filter(device_id=device_id).first()
+
         reading = SensorReading.objects.create(
+            node=node,           # ← set the FK
             device_id=device_id,
             timestamp=timestamp or timezone.now(),
             temperature=temperature,
             humidity=humidity,
             soil_moisture=soil_moisture,
-            raw_data=raw_data
+            raw_data=raw_data,
+            salinity=salinity,
         )
         
         logger.info(f'✅ Saved sensor reading {reading.id} for device {device_id}: Temp={temperature}, Hum={humidity}, Soil={soil_moisture}')

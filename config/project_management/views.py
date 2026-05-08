@@ -231,10 +231,17 @@ def _handle_project_creation(request):
             if not farm_boundary:
                 continue
 
+            device_id = node_data.get('device_id', '').strip()
+            if not device_id:
+                continue
+            # Check for duplicate device_id in this project
+            if IrrigationNode.objects.filter(project=project, device_id=device_id).exists():
+                continue  # Skip duplicate
+
             node = IrrigationNode(
                 project=project,
                 farm_boundary=farm_boundary,
-                device_id=node_data.get('device_id', ''),
+                device_id=device_id,
                 name=node_data.get('name', ''),
                 node_type=node_data.get('node_type', 'bme280_soil'),
                 description=node_data.get('description', ''),
@@ -528,7 +535,7 @@ def project_list(request):
 def serialize_sensor_nodes(irrigation_nodes):
     """Serialize sensor nodes for JavaScript"""
     data = []
-    for sensor in irrigatin_nodes:
+    for sensor in irrigation_nodes:
         node_data = {
             'id': sensor.id,
             'latitude': sensor.latitude,
@@ -610,12 +617,15 @@ def project_detail(request, slug):
         if node.location:
             latest = node.get_latest_reading()
             try:
+
                 irrigation_nodes_data.append({
                     'id': node.id,
                     'name': node.name,
                     'device_id': node.device_id,
                     'node_type': node.node_type,
                     'node_type_display': node.get_node_type_display(),
+                    'status': node.status,           # ✅ ADD THIS
+                    'battery_level': node.battery_level,  # ✅ ADD THIS
                     'farm_boundary_id': node.farm_boundary.id if node.farm_boundary else None,
                     'latitude': node.location.y,
                     'longitude': node.location.x,
@@ -623,6 +633,10 @@ def project_detail(request, slug):
                         'temperature': latest.temperature if latest else None,
                         'humidity': latest.humidity if latest else None,
                         'soil_moisture': latest.soil_moisture if latest else None,
+                        'salinity': latest.salinity if latest else None,
+                        'ec': latest.ec if latest else None,
+                        'rainfall': latest.rainfall if latest else None,
+                        'wind_speed': latest.wind_speed if latest else None,
                         'timestamp': latest.timestamp.isoformat() if latest else None,
                     } if latest else None
                 })
@@ -649,6 +663,7 @@ def project_detail(request, slug):
 
     context = {
         'project': project,
+        'project_id': project.id, 
         'farm_boundaries': farm_boundaries,
         'cameras': cameras,
         'irrigation_nodes': irrigation_nodes,

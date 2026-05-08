@@ -137,12 +137,14 @@
             position: relative;
             z-index: 2;
             color: white;
+            padding-top: 80px;
         }
 
         .hero h1 {
             font-size: 3.5rem;
             font-weight: 700;
             margin-bottom: 20px;
+            margin-top: 0;
             line-height: 1.2;
         }
 
@@ -564,6 +566,10 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .hero-content {
+                padding-top: 60px;
+            }
+
             .hero h1 {
                 font-size: 2.5rem;
             }
@@ -595,8 +601,8 @@
                 letter-spacing: 0.5px;
                 line-height: 1.2;
             }
-
-            .section-title h2 {
+            /* more specific to fix color being unrecognized */
+            .technology .section-title h2 {
                 font-size: 2rem;
                 color: white;
             }
@@ -712,8 +718,8 @@
             <div class="row align-items-center">
                 <div class="col-lg-6">
                     <div class="hero-content fade-in">
-                        <h1>Solar-Powered AI Farm Security</h1>
-                        <p>Revolutionary Raspberry Pi 4 camera system with dual-layer AI detection. Protect your farm from fire, smoke, and intruders with 24/7 solar-powered monitoring and instant mobile alerts.</p>
+                        <h1>Solar-Powered AI Farm Security & Irrigation</h1>
+                        <p>Revolutionary Raspberry Pi 4 system with dual-layer AI detection, smart irrigation control, and water optimization. Protect your farm from fire, smoke, intruders, and irrigation waste with 24/7 solar-powered monitoring and automated watering.</p>
                         
                         <div class="d-flex gap-3 flex-wrap">
                             {% if user.is_authenticated %}
@@ -758,8 +764,8 @@
     <section class="features" id="features">
         <div class="container">
             <div class="section-title fade-in">
-                <h2>Revolutionary Solar-Powered AI Protection</h2>
-                <p>Built on Raspberry Pi 4 with cutting-edge AI models for fire, smoke, and intrusion detection. Completely self-sustaining with solar power and dual-role monitoring system.</p>
+                <h2>Revolutionary Solar-Powered AI Protection & Irrigation</h2>
+                <p>Built on Raspberry Pi 4 with cutting-edge AI models for fire, smoke, intrusion detection, and smart irrigation control. Completely self-sustaining with solar power and automated water management.</p>
             </div>
 
             <div class="row">
@@ -870,8 +876,8 @@
         <div class="container">
     <div class="tech-content">
         <div class="section-title fade-in">
-            <h2 style="color: white;">AI Detection Capabilities</h2>
-            <p style="color: white;">Our advanced AI models are specifically trained to detect three critical threats to agricultural properties with exceptional accuracy and minimal false alarms.</p>
+            <h2 style="color: white;">AI Detection & Irrigation Capabilities</h2>
+            <p style="color: white;">Our advanced AI models are trained to detect critical farm threats and manage irrigation intelligently, balancing protection and water efficiency with exceptional accuracy.</p>
         </div>
         
         <div class="tech-grid">
@@ -945,8 +951,8 @@
     <section class="cta">
         <div class="container">
             <div class="fade-in">
-                <h2>Ready to Protect Your Farm?</h2>
-                <p>Deploy our solar-powered AI security system and start protecting your agricultural investments today. No electricity required, maximum protection guaranteed.</p>
+                <h2>Ready to Secure and Irrigate Your Farm?</h2>
+                <p>Deploy our solar-powered AI system and start protecting your agricultural investments while automating irrigation. No electricity required, smarter protection and water savings guaranteed.</p>
                 
                 <div class="d-flex gap-3 justify-content-center flex-wrap">
                     {% if user.is_authenticated %}
@@ -1003,6 +1009,17 @@
         </div>
     </div>
 </footer>
+<div id="farm-chat" style="position:fixed;bottom:24px;right:24px;z-index:9999;font-family:sans-serif">
+  <div id="chat-box" style="display:none;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);margin-bottom:12px">
+    <div style="background:#2d7a3a;color:white;padding:14px 16px;border-radius:12px 12px 0 0;font-weight:bold">🌿 Farm Assistant</div>
+    <div id="chat-msgs" style="height:260px;overflow-y:auto;padding:12px;background:#f9f9f9"></div>
+    <div style="display:flex;padding:8px;border-top:1px solid #eee">
+      <input id="chat-input" type="text" placeholder="Ask about your farm..." style="flex:1;border:none;outline:none;padding:6px;font-size:14px" onkeydown="if(event.key==='Enter')sendFarmMsg()" />
+      <button onclick="sendFarmMsg()" style="background:#2d7a3a;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">Send</button>
+    </div>
+  </div>
+  <button onclick="document.getElementById('chat-box').style.display=document.getElementById('chat-box').style.display==='none'?'block':'none'" style="background:#2d7a3a;color:white;border:none;border-radius:50%;width:56px;height:56px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);float:right">💬</button>
+</div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1095,6 +1112,46 @@
         document.querySelectorAll('.stat-item').forEach(item => {
             statsObserver.observe(item);
         });
+        const GROQ_KEY = "{{ groq_api_key }}";
+
+        async function sendFarmMsg() {
+        const input = document.getElementById("chat-input");
+        const msg = input.value.trim();
+        if (!msg) return;
+        addMsg("You", msg, "#e8f5e9");
+        input.value = "";
+        addMsg("🌿 Bot", "Thinking...", "#fff");
+        try {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + GROQ_KEY
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                {"role": "system", "content": "You are a helpful assistant for a smart farm monitoring website called Smart Farm Watcher. Answer questions about sensors, temperature, humidity, soil moisture, fire detection, intrusion alerts, irrigation, and solar power. Keep answers short and friendly."},
+                {"role": "user", "content": msg}
+                ]
+            })
+            });
+            const data = await res.json();
+            const msgs = document.getElementById("chat-msgs");
+            msgs.lastChild.innerHTML = "<strong>🌿 Bot:</strong> " + data.choices[0].message.content;
+        } catch(e) {
+            addMsg("🌿 Bot", "Connection error. Try again.", "#fff");
+        }
+        }
+        function addMsg(who, text, bg) {
+        const box = document.getElementById("chat-msgs");
+        const div = document.createElement("div");
+        div.style = "margin-bottom:10px;padding:8px 10px;background:"+bg+";border-radius:8px;font-size:14px";
+        div.innerHTML = "<strong>"+who+":</strong> "+text;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+        }
     </script>
+
 </body>
 </html>

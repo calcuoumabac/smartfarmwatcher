@@ -40,9 +40,10 @@ class Command(BaseCommand):
             decoded_payload = uplink_message.get('decoded_payload', {})
             
             # Extract sensor values
-            humidity = decoded_payload.get('humidity_pct')
+            humidity = decoded_payload.get('humidity')
             soil_moisture = decoded_payload.get('soil_moisture')
             temperature_raw = decoded_payload.get('temperature')
+            salinity = decoded_payload.get('salinity')
             
             # Prepare data for Celery task
             task_data = {
@@ -51,6 +52,7 @@ class Command(BaseCommand):
                 'temperature': temperature_raw,
                 'humidity': humidity,
                 'soil_moisture': soil_moisture,
+                'salinity': salinity,
                 'raw_data': payload
             }
             
