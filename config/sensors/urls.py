@@ -9,6 +9,8 @@ urlpatterns = [
         views.sensor_latest_readings,
         name='sensor_latest_readings'
     ),
+
+    # Endpoint to delete an irrigation node
     path(
         'api/client/dashboard/',
         views.client_dashboard_api,
