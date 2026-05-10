@@ -1112,6 +1112,7 @@
         document.querySelectorAll('.stat-item').forEach(item => {
             statsObserver.observe(item);
         });
+        //grok chat bot 
         const GROQ_KEY = "{{ groq_api_key }}";
 
         async function sendFarmMsg() {
