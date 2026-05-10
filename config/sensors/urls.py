@@ -9,4 +9,9 @@ urlpatterns = [
         views.sensor_latest_readings,
         name='sensor_latest_readings'
     ),
+    path(
+        'api/irrigation-nodes/<int:node_id>/delete/',
+        views.delete_irrigation_node,
+        name='delete_irrigation_node'
+    ),
 ]

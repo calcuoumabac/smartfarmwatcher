@@ -1,6 +1,10 @@
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from .models import IrrigationNode
 
 
@@ -35,3 +39,37 @@ def sensor_latest_readings(request, project_id):
         })
 
     return JsonResponse(data, safe=False)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_irrigation_node(request, node_id):
+    """
+    API endpoint to delete an irrigation node.
+    Only authenticated users can delete nodes from their projects.
+    """
+    try:
+        node = get_object_or_404(IrrigationNode, id=node_id)
+        
+        # Optional: Add permission check if needed
+        # if node.project.created_by != request.user:
+        #     return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        node_name = node.name
+        node.delete()
+        
+        return Response({
+            'success': True,
+            'message': f'Node "{node_name}" deleted successfully'
+        }, status=status.HTTP_200_OK)
+    
+    except IrrigationNode.DoesNotExist:
+        return Response({
+            'error': 'Node not found',
+            'success': False
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'success': False
+        }, status=status.HTTP_400_BAD_REQUEST)

@@ -468,6 +468,75 @@
     border-radius: 50%;
     display: inline-block;
 }
+/* added by me to track sensor nodes */
+/* Trash button styling */
+.trash-button-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.delete-node-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.delete-node-btn:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.delete-node-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+/* added by me to track sensor nodes */
+
+.delete-node-btn.delete-mode-active {
+    background: #ff6b6b;
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+    animation: pulseDelete 1.5s infinite;
+}
+
+.delete-node-btn.delete-mode-active:hover {
+    background: #ff5252;
+}
+
+@keyframes pulseDelete {
+    0% {
+        box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(220, 53, 69, 0.8);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+    }
+}
+
+.selected-node-info {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #e7f3ff;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 4px;
+    font-size: 13px;
+    color: #0c5460;
+    font-weight: 500;
+}
 </style>
 {% endblock %}
 
@@ -578,6 +647,16 @@
                     <span class="badge bg-warning me-2">Orange Markers</span> Cameras Outside Boundary
                     <span class="badge bg-info me-2">Cyan Markers</span> Sensor Nodes
                 </p>
+                <!-- added by me -->
+                <!-- Trash button above the map -->
+                <div class="trash-button-container" style="margin-top: 15px;">
+                    <button id="deleteNodeBtn" class="delete-node-btn">
+                        <i class="fas fa-trash-alt"></i> Delete Node
+                    </button>
+                    <span id="selectedNodeInfo" class="selected-node-info" style="display: none;">
+                        <span id="selectedNodeName"></span>
+                    </span>
+                </div>
             </div>
             <div id="project-map"></div>
         </div>
@@ -667,7 +746,7 @@
                         </thead>
                         <tbody>
                             {% for camera in cameras %}
-                            <tr>
+                            <tr id="camera-row-{{ camera.id }}">
                                 <td>Camera #{{ camera.id }}</td>
                                 <td>
                                     <span class="badge bg-secondary">{{ camera.get_camera_type_display }}</span>
@@ -764,6 +843,14 @@ let projectMap;
 
 // Get data from Django with safe parsing
 let boundariesData, camerasData, irrigationNodesData, mapCenter;
+//added by me to track sensor nodes
+// Track delete mode and selected item (camera or sensor node)
+let isDeleteMode = false;
+let selectedItemId = null;
+let selectedItemName = null;
+let selectedItemType = null; // 'camera' or 'sensor'
+let sensorMarkers = {};
+let cameraMarkers = {};
 
 try {
     boundariesData = {{ boundaries_data|safe }} || [];
@@ -789,6 +876,123 @@ function getRiskBackgroundColor(riskLevel) {
     };
     return colors[riskLevel] || colors['Unknown'];
 }
+//added by me to track sensor nodes
+// Delete Node Functions
+function toggleDeleteMode() {
+    isDeleteMode = !isDeleteMode;
+    const deleteBtn = document.getElementById('deleteNodeBtn');
+    const nodeInfo = document.getElementById('selectedNodeInfo');
+    
+    if (isDeleteMode) {
+        deleteBtn.classList.add('delete-mode-active');
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Click Node to Delete';
+        nodeInfo.style.display = 'inline-block';
+        nodeInfo.innerHTML = '<span id="selectedNodeName" style="color: #dc3545; font-weight: bold;">✓ Delete Mode Active</span>';
+    } else {
+        deleteBtn.classList.remove('delete-mode-active');
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete Node';
+        nodeInfo.style.display = 'none';
+    }
+}
+
+// added by me
+function selectNode(itemId, itemName, itemType = 'sensor') {
+    // If in delete mode, delete the item immediately
+    if (isDeleteMode) {
+        deleteItemImmediately(itemId, itemName, itemType);
+    }
+}
+
+function deleteItemImmediately(itemId, itemName, itemType) {
+    if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
+        return;
+    }
+    
+    const deleteBtn = document.getElementById('deleteNodeBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    
+    const apiUrl = itemType === 'camera' ? 
+        `/api/detection/cameras/${itemId}/delete/` : 
+        `/api/irrigation-nodes/${itemId}/delete/`;
+    
+    fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
+        } else {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return { success: true };
+        }
+    })
+    .then(data => {
+        alert(itemType === 'camera' ? 'Camera deleted successfully' : 'Node deleted successfully');
+        
+        if (itemType === 'camera') {
+            // Remove from camerasData array
+            camerasData = camerasData.filter(c => c.id !== itemId);
+            
+            // Remove marker from map
+            if (cameraMarkers[itemId]) {
+                projectMap.removeLayer(cameraMarkers[itemId]);
+                delete cameraMarkers[itemId];
+            }
+            
+            // Remove from table if exists
+            const cameraRow = document.getElementById(`camera-row-${itemId}`);
+            if (cameraRow) {
+                cameraRow.remove();
+            }
+        } else {
+            // Remove from sensorData array
+            sensorData = sensorData.filter(s => s.id !== itemId);
+            irrigationNodesData = irrigationNodesData.filter(n => n.id !== itemId);
+            
+            // Remove marker from map
+            if (window.sensorMarkers && window.sensorMarkers[itemId]) {
+                projectMap.removeLayer(window.sensorMarkers[itemId]);
+                delete window.sensorMarkers[itemId];
+            }
+            
+            // Remove from table if exists
+            const sensorRow = document.getElementById(`sensor-row-${itemId}`);
+            if (sensorRow) {
+                sensorRow.remove();
+            }
+        }
+        
+        // Stay in delete mode for next deletion
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Click Node to Delete';
+        
+        // Reload page to refresh all data
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        alert('Error deleting node: ' + error.message);
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Click Node to Delete';
+    });
+}
+
+// tell here to toggle delete mode on button click 
 
 function getRiskTextColor(riskLevel) {
     return 'white';
@@ -935,7 +1139,16 @@ function addCameraMarkersWithFireRisk() {
                         maxWidth: 300,
                         className: 'camera-popup-container'
                     });
+                    // added by me
+                    // Add click handler to delete camera in delete mode
+                    marker.on('click', function() {
+                        selectNode(camera.id, `Camera #${camera.id}`, 'camera');
+                    });
+                    
+                    // Store marker reference
+                    cameraMarkers[camera.id] = marker; // tell here 
                 }
+
             } catch (e) {
                 console.error(' Error loading camera:', e);
             }
@@ -1135,6 +1348,15 @@ function addSensorMarkers() {
                         maxWidth: 300,
                         className: 'sensor-popup-container'
                     });
+                    //added by me
+                    // Add click handler to select node
+                    marker.on('click', function() {
+                        selectNode(sensor.id, sensor.name);
+                    });
+                    // added by me
+                    // Store marker reference
+                    window.sensorMarkers[sensor.id] = marker;
+                    sensorMarkers[sensor.id] = marker;
                 }
             } catch (e) {
                 console.error('❌ Error loading sensor:', e);
@@ -1373,6 +1595,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }, index * 100);
     });
+    //added by me
+    // Add delete button click handler
+    const deleteBtn = document.getElementById('deleteNodeBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            toggleDeleteMode();
+        });
+    }
 });
 
 </script>
