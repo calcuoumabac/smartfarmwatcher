@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 from decouple import config
 from datetime import timedelta
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -52,7 +51,10 @@ if PUBLIC_DOMAINS:
     domains = [domain.strip() for domain in PUBLIC_DOMAINS.split(',') if domain.strip()]
     ALLOWED_HOSTS.extend(domains)
 
-CORS_ALLOWED_ALL_ORIGINS = True
+#used to be allowed 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+CORS_ALLOW_HEADERS = ["*"]
 
 # Application definition
 

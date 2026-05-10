@@ -798,6 +798,18 @@
             height: 160px;
         }
     }
+        .stat-card.env-nodes::before {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+        .stat-icon.env-nodes {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+        .stat-card.water-nodes::before {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+    }
+        .stat-icon.water-nodes {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+    }
 </style>
 {% endblock %}
 
@@ -858,6 +870,27 @@
         </div>
     </div>
 </div>
+<!-- Sensor Node Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 col-sm-6 mb-3">
+        <div class="stat-card env-nodes">
+            <div class="stat-icon env-nodes">
+                <i class="fas fa-thermometer-half"></i>
+            </div>
+            <h3 class="stat-number">{{ environment_node_count|default:0 }}</h3>
+            <p class="stat-label">ENV. Nodes</p>
+        </div>
+    </div>
+    <div class="col-md-6 col-sm-6 mb-3">
+        <div class="stat-card water-nodes">
+            <div class="stat-icon water-nodes">
+                <i class="fas fa-tint"></i>
+            </div>
+            <h3 class="stat-number">{{ water_node_count|default:0 }}</h3>
+            <p class="stat-label">Water Nodes</p>
+        </div>
+    </div>
+</div>
 
 <!-- Main Content: Latest Project and Detection -->
 <div class="row">
@@ -890,7 +923,7 @@
                 <p class="text-muted mb-3">{{ latest_project.description|default:"No description available." }}</p>
                 
                 <!-- Project Statistics -->
-                <div class="project-stats">
+                <div class="project-stats" style="grid-template-columns: repeat(5, 1fr);">
                     <div class="stat-item">
                         <div class="number">{{ latest_project.total_boundaries|default:0 }}</div>
                         <div class="label">Boundaries</div>
@@ -902,6 +935,14 @@
                     <div class="stat-item">
                         <div class="number">{{ latest_project.total_detections|default:0 }}</div>
                         <div class="label">Detections</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number" style="color: #17a2b8;">{{ latest_project.total_environment_nodes|default:0 }}</div>
+                        <div class="label">ENV Nodes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="number" style="color: #007bff;">{{ latest_project.total_water_nodes|default:0 }}</div>
+                        <div class="label">Water Nodes</div>
                     </div>
                 </div>
             </div>

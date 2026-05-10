@@ -516,7 +516,7 @@
         <i class="fas fa-pause"></i> Inactive
     {% endif %}
 </span>
-                    <a href="{% url 'project_management:project_delete' project.slug %}" class="btn btn-danger btn-sm">
+                    <a href="{% url 'project_management:project_delete' project.slug %}" class="btn btn-danger btn-sm rounded-pill">
                         <i class="fas fa-trash-alt"></i> Delete Project
                     </a>
                 </div>
@@ -735,8 +735,9 @@
                                             <div><strong>Soil Moisture:</strong> {% if reading and reading.soil_moisture %}{{ reading.soil_moisture }}%{% else %}--{% endif %}</div>
                                         {% elif node.node_type == 'salinity' %}
                                             <div><strong>Salinity:</strong> {% if reading and reading.salinity %}{{ reading.salinity }}{% else %}--{% endif %}</div>
-                                            <div><strong>Wind Speed:</strong> {% if reading and reading.wind_speed %}{{ reading.wind_speed }} m/s{% else %}--{% endif %}</div>
                                             <div><strong>Rainfall:</strong> {% if reading and reading.rainfall %}{{ reading.rainfall }} mm{% else %}--{% endif %}</div>
+                                            <div><strong>Wind Speed:</strong> {% if reading and reading.wind_speed %}{{ reading.wind_speed }} m/s{% else %}--{% endif %}</div>
+                                            <div><strong>EC:</strong> {% if reading and reading.ec %}{{ reading.ec }} μS/cm{% else %}--{% endif %}</div>
                                         {% else %}
                                             <span class="text-muted">No readings available</span>
                                         {% endif %}

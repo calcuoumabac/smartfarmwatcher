@@ -39,6 +39,7 @@ def save_sensor_reading(self, data):
         soil_moisture = data.get('soil_moisture')
         raw_data = data.get('raw_data')
         salinity=data.get('salinity')  # Extract salinity if available
+        ec=data.get('ec')  # Extract EC if available
         
         # linking sesnosr reading to node via device_id
         node = None
@@ -58,6 +59,7 @@ def save_sensor_reading(self, data):
             soil_moisture=soil_moisture,
             raw_data=raw_data,
             salinity=salinity,
+            ec=ec,
         )
         
         logger.info(f'✅ Saved sensor reading {reading.id} for device {device_id}: Temp={temperature}, Hum={humidity}, Soil={soil_moisture}')

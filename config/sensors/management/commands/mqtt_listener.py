@@ -44,6 +44,7 @@ class Command(BaseCommand):
             soil_moisture = decoded_payload.get('soil_moisture')
             temperature_raw = decoded_payload.get('temperature')
             salinity = decoded_payload.get('salinity')
+            ec = decoded_payload.get('ec')
             
             # Prepare data for Celery task
             task_data = {
@@ -52,6 +53,7 @@ class Command(BaseCommand):
                 'temperature': temperature_raw,
                 'humidity': humidity,
                 'soil_moisture': soil_moisture,
+                'ec': ec,
                 'salinity': salinity,
                 'raw_data': payload
             }

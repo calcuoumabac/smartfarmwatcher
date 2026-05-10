@@ -125,9 +125,19 @@ class LoginView(View):
     def post(self, request):
         form = LoginForm(request.POST)
         if form.is_valid():
-            username = form.cleaned_data['username']
+            username_or_email = form.cleaned_data['username']
             password = form.cleaned_data['password']
-            user = authenticate(request, username=username, password=password)
+            
+            # Try to authenticate with username first
+            user = authenticate(request, username=username_or_email, password=password)
+            
+            if user is None:
+                # If not found, try with email
+                try:
+                    user_obj = AppUser.objects.get(email=username_or_email)
+                    user = authenticate(request, username=user_obj.username, password=password)
+                except AppUser.DoesNotExist:
+                    user = None
             
             if user is not None:
                 login(request, user)

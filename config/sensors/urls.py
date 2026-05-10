@@ -9,4 +9,9 @@ urlpatterns = [
         views.sensor_latest_readings,
         name='sensor_latest_readings'
     ),
+    path(
+        'api/client/dashboard/',
+        views.client_dashboard_api,
+        name='client_dashboard'
+    ),
 ]
