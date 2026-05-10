@@ -606,3 +606,34 @@ def detection_history(request):
             'success': False,
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# added by me 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_camera(request, camera_id):
+    """Delete a camera from the project"""
+    try:
+        user = request.user
+        user_projects = get_user_projects(user)
+        
+        # Verify user has access to this camera
+        camera = get_object_or_404(
+            Camera,
+            id=camera_id,
+            project__in=user_projects
+        )
+        
+        camera_name = camera.description or f"Camera {camera.id}"
+        camera.delete()
+        
+        return Response({
+            'success': True,
+            'message': f'Camera "{camera_name}" deleted successfully'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)

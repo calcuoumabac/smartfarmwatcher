@@ -12,6 +12,10 @@ urlpatterns = [
     path(
         'api/client/dashboard/',
         views.client_dashboard_api,
-        name='client_dashboard'
+        name='client_dashboard' ) ,
+    path(
+        'api/irrigation-nodes/<int:node_id>/delete/',
+        views.delete_irrigation_node,
+        name='delete_irrigation_node'
     ),
 ]

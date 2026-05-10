@@ -728,7 +728,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% with node.get_latest_reading as reading %}
+                                    {% with node.get_latest_reading as reading %} 
                                         {% if node.node_type == 'bme280_soil' %}
                                             <div><strong>Temp:</strong> {% if reading and reading.temperature %}{{ reading.temperature }}°C{% else %}--{% endif %}</div>
                                             <div><strong>Humidity:</strong> {% if reading and reading.humidity %}{{ reading.humidity }}%{% else %}--{% endif %}</div>
