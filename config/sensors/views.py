@@ -37,7 +37,6 @@ def sensor_latest_readings(request, project_id):
     return JsonResponse(data, safe=False)
 
 
-<<<<<<< HEAD
 #client api endpoint 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -164,7 +163,6 @@ def client_dashboard_api(request):
         'sensors': sensor_data,
         'alerts': list(alerts),
     })
-=======
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_irrigation_node(request, node_id):
@@ -197,4 +195,3 @@ def delete_irrigation_node(request, node_id):
             'error': str(e),
             'success': False
         }, status=status.HTTP_400_BAD_REQUEST)
->>>>>>> 370f99ef058c583982c38e48637bf2aa3438e764
