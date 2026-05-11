@@ -19,7 +19,7 @@ urlpatterns = [
     
     # Camera detections
     path('cameras/<int:camera_id>/detections/', api_views.camera_detections, name='camera_detections'),
-    path('cameras/<int:camera_id>/delete/', api_views.delete_camera, name='delete_camera'),
+    path('cameras/<int:camera_id>/delete/', api_views.delete_camera, name='delete_camera'), # added by me
     
     # Detection endpoints
     path('detections/<int:detection_id>/', api_views.detection_detail, name='detection_detail'),
